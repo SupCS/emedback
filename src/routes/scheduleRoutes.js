@@ -15,6 +15,24 @@ const isOverlapping = (existingSlots, newSlot) => {
     });
 };
 
+// Функція для перевірки допустимої тривалості слота (від 10 хв до 2 годин)
+const isValidSlotDuration = (startTime, endTime) => {
+    const start = parseInt(startTime.replace(":", ""), 10);
+    const end = parseInt(endTime.replace(":", ""), 10);
+    const duration = end - start;
+
+    return duration >= 10 && duration <= 200;
+};
+
+// Функція для перевірки, що слот не створюється в минулому
+const isFutureDate = (date, startTime) => {
+    const now = new Date();
+    const slotDateTime = new Date(date + "T" + startTime + ":00");
+
+    return slotDateTime > now; // Дата і час повинні бути в майбутньому
+};
+
+// Додавання або оновлення слоту лікарем
 // Додавання або оновлення слоту лікарем
 router.post("/add", authenticate(["doctor"]), async (req, res) => {
     const { date, slots } = req.body;
@@ -24,14 +42,26 @@ router.post("/add", authenticate(["doctor"]), async (req, res) => {
         return res.status(400).json({ message: "Invalid data format." });
     }
 
+    for (let slot of slots) {
+        if (!isValidSlotDuration(slot.startTime, slot.endTime)) {
+            return res.status(400).json({
+                message: `Slot ${slot.startTime} - ${slot.endTime} must be between 10 minutes and 2 hours.`,
+            });
+        }
+
+        if (!isFutureDate(date, slot.startTime)) {
+            return res.status(400).json({
+                message: `Slot ${slot.startTime} on ${date} is in the past and cannot be created.`,
+            });
+        }
+    }
+
     try {
         let schedule = await DoctorSchedule.findOne({ doctorId });
 
         if (!schedule) {
-            // Якщо у лікаря ще немає розкладу, створюємо запис
             schedule = new DoctorSchedule({ doctorId, availability: [{ date, slots }] });
         } else {
-            // Шукаємо, чи вже є розклад для цієї дати
             let daySchedule = schedule.availability.find(d => d.date === date);
 
             if (!daySchedule) {
@@ -107,12 +137,22 @@ router.get("/:doctorId", async (req, res) => {
     const { doctorId } = req.params;
 
     try {
-        const schedule = await DoctorSchedule.findOne({ doctorId });
+        let schedule = await DoctorSchedule.findOne({ doctorId });
 
         if (!schedule) {
             return res.status(404).json({ message: "No schedule found for this doctor." });
         }
 
+        // Видаляємо всі минулі слоти
+        const now = new Date();
+        schedule.availability = schedule.availability
+            .map(day => ({
+                date: day.date,
+                slots: day.slots.filter(slot => new Date(day.date + "T" + slot.endTime + ":00") > now)
+            }))
+            .filter(day => day.slots.length > 0); // Видаляємо дні без слотів
+
+        await schedule.save();
         res.status(200).json(schedule);
     } catch (error) {
         console.error(error);
