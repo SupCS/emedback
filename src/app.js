@@ -1,5 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
+const cors = require("cors");
 const routes = require("./routes");
 
 dotenv.config(); // Завантаження змінних із .env
@@ -9,6 +10,9 @@ const PORT = process.env.PORT || 5000; // Порт за замовчування
 
 const connectDB = require("./config/db");
 connectDB();
+
+// Використовуємо CORS middleware
+app.use(cors());
 
 // Middleware для обробки JSON
 app.use(express.json());
