@@ -23,7 +23,7 @@ router.get("/", async (req, res) => {
 
         // Отримуємо список лікарів за фільтром
         const doctors = await Doctor.find(filter)
-            .select("-password") // Прибираємо поле пароля
+            .select("name specialization rating") // Повертаємо тільки потрібні поля
             .sort({ rating: -1 }); // Сортуємо за рейтингом за спаданням
 
         res.status(200).json(doctors);
@@ -32,5 +32,26 @@ router.get("/", async (req, res) => {
         res.status(500).json({ message: "Something went wrong." });
     }
 });
+
+// Отримання деталей лікаря
+router.get("/details/:doctorId", async (req, res) => {
+    const { doctorId } = req.params;
+
+    try {
+        const doctor = await Doctor.findById(doctorId).select(
+            "name email specialization experience rating bio"
+        );
+
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found." });
+        }
+
+        res.status(200).json(doctor);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Something went wrong." });
+    }
+});
+
 
 module.exports = router;

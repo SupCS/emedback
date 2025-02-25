@@ -4,6 +4,7 @@ const authRoutes = require("./authRoutes");
 const profileRoutes = require("./profileRoutes");
 const scheduleRoutes = require("./scheduleRoutes");
 const doctorRoutes = require("./doctorRoutes");
+const appointmentRoutes = require("./appointmentRoutes");
 
 // Тестовий ендпоїнт (головна сторінка)
 router.get("/", (req, res) => {
@@ -15,6 +16,7 @@ router.use("/auth", authRoutes);
 router.use("/profile", profileRoutes);
 router.use("/schedule", scheduleRoutes);
 router.use("/doctors", doctorRoutes);
+router.use("/appointments", appointmentRoutes);
 
 
 module.exports = router;

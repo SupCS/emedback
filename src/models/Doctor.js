@@ -41,12 +41,6 @@ const doctorSchema = new mongoose.Schema({
         type: String,
         required: false,
     },
-    appointments: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Appointment",
-        },
-    ],
     createdAt: {
         type: Date,
         default: Date.now,

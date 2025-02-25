@@ -58,8 +58,8 @@ router.post("/login", async (req, res) => {
     try {
         // Шукаємо користувача серед пацієнтів і лікарів паралельно
         const [patient, doctor] = await Promise.all([
-            Patient.findOne({ email }),
-            Doctor.findOne({ email }),
+            Patient.findOne({ email }).select("+password"),
+            Doctor.findOne({ email }).select("+password")
         ]);
 
         // Визначаємо роль користувача
