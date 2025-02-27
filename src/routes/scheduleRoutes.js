@@ -32,7 +32,48 @@ const isFutureDate = (date, startTime) => {
     return slotDateTime > now; // Дата і час повинні бути в майбутньому
 };
 
-// Додавання або оновлення слоту лікарем
+/**
+ * @swagger
+ * /schedule/add:
+ *   post:
+ *     summary: Додавання або оновлення слоту лікарем
+ *     tags:
+ *       - Schedule
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 description: Дата у форматі YYYY-MM-DD
+ *                 example: "2025-03-01"
+ *               slots:
+ *                 type: array
+ *                 description: Список слотів
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     startTime:
+ *                       type: string
+ *                       description: Час початку
+ *                       example: "10:00"
+ *                     endTime:
+ *                       type: string
+ *                       description: Час завершення
+ *                       example: "11:00"
+ *     responses:
+ *       201:
+ *         description: Schedule updated successfully
+ *       400:
+ *         description: Invalid data format or overlapping slots
+ *       500:
+ *         description: Something went wrong
+ */
 // Додавання або оновлення слоту лікарем
 router.post("/add", authenticate(["doctor"]), async (req, res) => {
     const { date, slots } = req.body;
@@ -86,6 +127,44 @@ router.post("/add", authenticate(["doctor"]), async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /schedule/remove-slot:
+ *   delete:
+ *     summary: Видалення слоту лікарем
+ *     tags:
+ *       - Schedule
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 description: Дата у форматі YYYY-MM-DD
+ *                 example: "2025-03-01"
+ *               startTime:
+ *                 type: string
+ *                 description: Час початку
+ *                 example: "10:00"
+ *               endTime:
+ *                 type: string
+ *                 description: Час завершення
+ *                 example: "11:00"
+ *     responses:
+ *       200:
+ *         description: Slot removed successfully
+ *       400:
+ *         description: Invalid data format
+ *       404:
+ *         description: Schedule or Slot not found
+ *       500:
+ *         description: Something went wrong
+ */
 // Видалення слоту лікарем
 router.delete("/remove-slot", authenticate(["doctor"]), async (req, res) => {
     const { date, startTime, endTime } = req.body;
@@ -132,6 +211,52 @@ router.delete("/remove-slot", authenticate(["doctor"]), async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /schedule/{doctorId}:
+ *   get:
+ *     summary: Отримання графіка лікаря
+ *     tags:
+ *       - Schedule
+ *     parameters:
+ *       - name: doctorId
+ *         in: path
+ *         required: true
+ *         description: ID лікаря
+ *         schema:
+ *           type: string
+ *           example: "609e1267b5a4a200157d8393"
+ *     responses:
+ *       200:
+ *         description: Schedule fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 doctorId:
+ *                   type: string
+ *                 availability:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       date:
+ *                         type: string
+ *                       slots:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             startTime:
+ *                               type: string
+ *                             endTime:
+ *                               type: string
+ *       404:
+ *         description: No schedule found for this doctor
+ *       500:
+ *         description: Something went wrong
+ */
 // Отримання графіка лікаря
 router.get("/:doctorId", async (req, res) => {
     const { doctorId } = req.params;

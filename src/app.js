@@ -2,7 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const routes = require("./routes");
-const DoctorSchedule = require("./models/DoctorSchedule");
+const swaggerDocs = require("./config/swagger");
 
 
 dotenv.config(); // Завантаження змінних із .env
@@ -21,6 +21,9 @@ app.use(express.json());
 
 // Роутинг
 app.use("/", routes);
+
+// Підключення Swagger
+swaggerDocs(app);
 
 // Запуск серверу
 app.listen(PORT, () => {

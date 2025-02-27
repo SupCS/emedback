@@ -5,6 +5,44 @@ const DoctorSchedule = require("../models/DoctorSchedule");
 const authenticate = require("../middleware/authMiddleware");
 const router = express.Router();
 
+/**
+ * @swagger
+ * /appointments/create:
+ *   post:
+ *     summary: Створення запису (appointment)
+ *     tags:
+ *       - Appointments
+ *     security:
+ *       - JWT: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               doctorId:
+ *                 type: string
+ *                 description: ID лікаря
+ *               date:
+ *                 type: string
+ *                 description: Дата запису (формат YYYY-MM-DD)
+ *               startTime:
+ *                 type: string
+ *                 description: Час початку (формат HH:mm)
+ *               endTime:
+ *                 type: string
+ *                 description: Час завершення (формат HH:mm)
+ *     responses:
+ *       201:
+ *         description: Appointment created successfully
+ *       400:
+ *         description: Time slot already booked or invalid data
+ *       403:
+ *         description: Access denied
+ *       500:
+ *         description: Something went wrong
+ */
 // Створення запису (appointment)
 router.post("/create", authenticate(["patient"]), async (req, res) => {
     const { doctorId, date, startTime, endTime } = req.body;
@@ -95,6 +133,30 @@ router.post("/create", authenticate(["patient"]), async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /appointments/doctor/{doctorId}:
+ *   get:
+ *     summary: Отримання всіх записів лікаря
+ *     tags:
+ *       - Appointments
+ *     security:
+ *       - JWT: []
+ *     parameters:
+ *       - name: doctorId
+ *         in: path
+ *         required: true
+ *         description: ID лікаря
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Success
+ *       403:
+ *         description: Access denied
+ *       500:
+ *         description: Something went wrong
+ */
 // Отримання всіх записів лікаря
 router.get("/doctor/:doctorId", authenticate(["doctor"]), async (req, res) => {
     const { doctorId } = req.params;
@@ -116,6 +178,30 @@ router.get("/doctor/:doctorId", authenticate(["doctor"]), async (req, res) => {
     }
 });
 
+/**
+ * @swagger
+ * /appointments/patient/{patientId}:
+ *   get:
+ *     summary: Отримання всіх записів пацієнта
+ *     tags:
+ *       - Appointments
+ *     security:
+ *       - JWT: []
+ *     parameters:
+ *       - name: patientId
+ *         in: path
+ *         required: true
+ *         description: ID пацієнта
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Success
+ *       403:
+ *         description: Access denied
+ *       500:
+ *         description: Something went wrong
+ */
 // Отримання всіх записів пацієнта
 router.get("/patient/:patientId", authenticate(["patient"]), async (req, res) => {
     const { patientId } = req.params;
