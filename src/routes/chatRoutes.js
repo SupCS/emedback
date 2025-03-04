@@ -4,6 +4,9 @@ const Chat = require("../models/Chat");
 const Message = require("../models/Message");
 const Appointment = require("../models/Appointment");
 const authenticate = require("../middleware/authMiddleware");
+const socket = require("../socket");
+const Doctor = require("../models/Doctor");
+const Patient = require("../models/Patient");
 
 const router = express.Router();
 
@@ -157,6 +160,8 @@ router.post(
       const { chatId, content } = req.body;
       const senderId = req.user.id; // ID користувача з токену
 
+      const io = req.app.get("io");
+
       // Перевіряємо, чи чат існує
       const chat = await Chat.findById(chatId);
       if (!chat) {
@@ -185,6 +190,7 @@ router.post(
       });
 
       await message.save();
+      io.to(chatId).emit("receiveMessage", message);
       res.status(201).json(message);
     } catch (error) {
       res.status(500).json({ message: "Error sending message", error });
@@ -228,23 +234,48 @@ router.get(
       // Перевіряємо, чи чат існує
       const chat = await Chat.findById(chatId);
       if (!chat) {
+        console.error(`🔴 Chat not found: ${chatId}`);
         return res.status(400).json({ message: "Chat not found." });
       }
 
       // Перевіряємо, чи користувач є учасником чату
       if (!chat.participants.includes(userId)) {
+        console.error(
+          `🔴 User ${userId} is not a participant of chat ${chatId}`
+        );
         return res
           .status(403)
           .json({ message: "You are not a participant in this chat." });
       }
 
-      // Отримуємо повідомлення
+      // Отримуємо всі повідомлення
       const messages = await Message.find({ chat: chatId }).sort({
         createdAt: 1,
       });
-      res.status(200).json(messages);
+
+      // Отримуємо імена відправників
+      const populatedMessages = await Promise.all(
+        messages.map(async (msg) => {
+          let sender = await Doctor.findById(msg.sender).select("name");
+          if (!sender) {
+            sender = await Patient.findById(msg.sender).select("name");
+          }
+          return {
+            ...msg.toObject(),
+            sender: { name: sender ? sender.name : "Невідомий" },
+          };
+        })
+      );
+
+      console.log(
+        `🟢 Fetched ${populatedMessages.length} messages for chat ${chatId}`
+      );
+      res.status(200).json(populatedMessages);
     } catch (error) {
-      res.status(500).json({ message: "Error fetching messages", error });
+      console.error("🔴 Error fetching messages:", error);
+      res
+        .status(500)
+        .json({ message: "Error fetching messages", error: error.message });
     }
   }
 );
