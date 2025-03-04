@@ -5,10 +5,11 @@ const profileRoutes = require("./profileRoutes");
 const scheduleRoutes = require("./scheduleRoutes");
 const doctorRoutes = require("./doctorRoutes");
 const appointmentRoutes = require("./appointmentRoutes");
+const chatRoutes = require("./chatRoutes");
 
 // Тестовий ендпоїнт (головна сторінка)
 router.get("/", (req, res) => {
-    res.send("Hello World!");
+  res.send("Hello World!");
 });
 
 // Маршрути для аутентифікації
@@ -17,6 +18,6 @@ router.use("/profile", profileRoutes);
 router.use("/schedule", scheduleRoutes);
 router.use("/doctors", doctorRoutes);
 router.use("/appointments", appointmentRoutes);
-
+router.use("/chat", chatRoutes);
 
 module.exports = router;

@@ -19,7 +19,8 @@
     "express-swagger-generator": "^1.1.17",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.5",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.9",
