@@ -278,14 +278,14 @@ router.get(
 router.get("/unread/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Знаходимо непрочитані повідомлення по чатах
+    // Враховуємо тільки непрочитані повідомлення, які відправили інші користувачі
     const unreadMessages = await Message.aggregate([
-      { $match: { read: false, sender: { $ne: userId } } },
+      { $match: { read: false, sender: { $ne: userObjectId } } },
       { $group: { _id: "$chat", count: { $sum: 1 } } },
     ]);
 
-    // Формуємо об'єкт { chatId: unreadCount }
     const unreadCounts = unreadMessages.reduce((acc, item) => {
       acc[item._id] = item.count;
       return acc;
