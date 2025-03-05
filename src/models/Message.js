@@ -8,13 +8,26 @@ const messageSchema = new mongoose.Schema({
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // Узагальнена схема для лікарів і пацієнтів
+    refPath: "senderModel",
+    required: true,
+  },
+  senderModel: {
+    type: String,
+    enum: ["Doctor", "Patient"],
+    required: true,
+  },
+  senderName: {
+    type: String,
     required: true,
   },
   content: {
     type: String,
     required: true,
     trim: true,
+  },
+  read: {
+    type: Boolean,
+    default: false,
   },
   createdAt: {
     type: Date,
@@ -23,5 +36,4 @@ const messageSchema = new mongoose.Schema({
 });
 
 const Message = mongoose.model("Message", messageSchema);
-
 module.exports = Message;

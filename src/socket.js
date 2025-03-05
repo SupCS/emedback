@@ -102,6 +102,8 @@ module.exports = {
 
         const { chatId, content } = messageData;
         const senderId = socket.user.id;
+        const senderModel =
+          socket.user.role === "doctor" ? "Doctor" : "Patient";
 
         if (!chatId || !content) {
           console.log("🔴 Error: Invalid message data", messageData);
@@ -120,30 +122,18 @@ module.exports = {
             return;
           }
 
-          // Створюємо повідомлення
           const message = new Message({
             chat: chatId,
             sender: senderId,
+            senderModel,
+            senderName: socket.user.name,
             content,
           });
+
           await message.save();
 
-          // Отримуємо ім'я відправника
-          let sender = await Doctor.findById(senderId).select("name");
-          if (!sender) {
-            sender = await Patient.findById(senderId).select("name");
-          }
-
-          const populatedMessage = {
-            ...message.toObject(),
-            sender: { name: sender ? sender.name : "Невідомий" },
-          };
-
-          console.log(
-            `🟢 Emitting receiveMessage to chat ${chatId}`,
-            populatedMessage
-          );
-          io.to(chatId).emit("receiveMessage", populatedMessage);
+          console.log(`🟢 Emitting receiveMessage to chat ${chatId}`, message);
+          io.to(chatId).emit("receiveMessage", message);
         } catch (error) {
           console.log("🔴 Error sending message:", error);
         }

@@ -159,6 +159,7 @@ router.post(
     try {
       const { chatId, content } = req.body;
       const senderId = req.user.id; // ID користувача з токену
+      const senderModel = req.user.role === "doctor" ? "Doctor" : "Patient";
 
       const io = req.app.get("io");
 
@@ -175,6 +176,14 @@ router.post(
           .json({ message: "You are not a participant in this chat." });
       }
 
+      // Отримуємо ім'я відправника один раз
+      let sender = await (senderModel === "Doctor" ? Doctor : Patient)
+        .findById(senderId)
+        .select("name");
+      if (!sender) {
+        return res.status(400).json({ message: "Sender not found." });
+      }
+
       // Перевірка, чи повідомлення не порожнє
       if (!content || content.trim().length === 0) {
         return res
@@ -186,6 +195,8 @@ router.post(
       const message = new Message({
         chat: chatId,
         sender: senderId,
+        senderModel,
+        senderName: sender.name,
         content,
       });
 
@@ -248,29 +259,13 @@ router.get(
           .json({ message: "You are not a participant in this chat." });
       }
 
-      // Отримуємо всі повідомлення
+      // Отримуємо всі повідомлення (тепер `senderName` вже є в базі)
       const messages = await Message.find({ chat: chatId }).sort({
         createdAt: 1,
       });
 
-      // Отримуємо імена відправників
-      const populatedMessages = await Promise.all(
-        messages.map(async (msg) => {
-          let sender = await Doctor.findById(msg.sender).select("name");
-          if (!sender) {
-            sender = await Patient.findById(msg.sender).select("name");
-          }
-          return {
-            ...msg.toObject(),
-            sender: { name: sender ? sender.name : "Невідомий" },
-          };
-        })
-      );
-
-      console.log(
-        `🟢 Fetched ${populatedMessages.length} messages for chat ${chatId}`
-      );
-      res.status(200).json(populatedMessages);
+      console.log(`🟢 Fetched ${messages.length} messages for chat ${chatId}`);
+      res.status(200).json(messages);
     } catch (error) {
       console.error("🔴 Error fetching messages:", error);
       res
@@ -279,5 +274,42 @@ router.get(
     }
   }
 );
+
+router.get("/unread/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Знаходимо непрочитані повідомлення по чатах
+    const unreadMessages = await Message.aggregate([
+      { $match: { read: false, sender: { $ne: userId } } },
+      { $group: { _id: "$chat", count: { $sum: 1 } } },
+    ]);
+
+    // Формуємо об'єкт { chatId: unreadCount }
+    const unreadCounts = unreadMessages.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    res.json(unreadCounts);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching unread messages", error });
+  }
+});
+
+router.post("/read", async (req, res) => {
+  try {
+    const { chatId, userId } = req.body;
+
+    await Message.updateMany(
+      { chat: chatId, sender: { $ne: userId }, read: false },
+      { $set: { read: true } }
+    );
+
+    res.json({ message: "Messages marked as read." });
+  } catch (error) {
+    res.status(500).json({ message: "Error marking messages as read", error });
+  }
+});
 
 module.exports = router;
