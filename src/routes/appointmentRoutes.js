@@ -229,7 +229,7 @@ router.get("/doctor/:doctorId", authenticate(["doctor"]), async (req, res) => {
 // Отримання всіх записів пацієнта
 router.get(
   "/patient/:patientId",
-  authenticate(["patient"]),
+  authenticate(["patient", "doctor"]),
   async (req, res) => {
     const { patientId } = req.params;
 
