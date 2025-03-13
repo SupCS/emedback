@@ -6,6 +6,7 @@ const routes = require("./routes");
 const swaggerDocs = require("./config/swagger");
 const connectDB = require("./config/db");
 const socket = require("./socket"); // Імпортуємо WebSocket
+const path = require("path");
 
 dotenv.config();
 connectDB();
@@ -18,6 +19,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use("/", routes);
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 swaggerDocs(app);
 
 // Запускаємо WebSocket після ініціалізації сервера
