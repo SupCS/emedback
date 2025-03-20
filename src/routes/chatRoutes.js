@@ -190,11 +190,16 @@ router.post(
           .json({ message: "Message content cannot be empty." });
       }
 
+      // Перевірка, чи повідомлення не занадто довге
+      if (content.length > 1000) {
+        return res.status(400).json({ message: "Message is too long." });
+      }
+
       // Створюємо повідомлення
       const message = new Message({
         chat: chatId,
         sender: senderId,
-        senderModel: req.body.senderModel,
+        senderModel,
         senderName: sender.name,
         content,
       });
