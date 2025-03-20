@@ -154,35 +154,31 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Шукаємо користувача серед пацієнтів і лікарів паралельно
     const [patient, doctor] = await Promise.all([
       Patient.findOne({ email }).select("+password"),
       Doctor.findOne({ email }).select("+password"),
     ]);
 
-    // Визначаємо роль користувача
     const user = patient || doctor;
     const role = patient ? "patient" : doctor ? "doctor" : null;
 
-    // Якщо користувача з таким email не знайдено
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // Перевіряємо пароль
+    // Проверяем пароль
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // Генеруємо JWT токен
+    // Генерируем JWT-токен
     const token = jwt.sign(
       { id: user._id, role, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // Повертаємо відповідь
     res.status(200).json({
       message: "Login successful.",
       token,
@@ -194,7 +190,6 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(error);
     res.status(500).json({
       message: "Something went wrong. Please try again later.",
     });

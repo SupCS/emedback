@@ -2,10 +2,9 @@ const socketIo = require("socket.io");
 const jwt = require("jsonwebtoken");
 const Chat = require("./models/Chat");
 const Message = require("./models/Message");
-const Doctor = require("./models/Doctor");
-const Patient = require("./models/Patient");
 
 let io;
+const users = new Map(); // userId → socketId
 
 module.exports = {
   init: (server) => {
@@ -21,11 +20,10 @@ module.exports = {
     io.use((socket, next) => {
       let token = socket.handshake.auth?.token;
 
-      // Якщо токена немає в auth, пробуємо отримати його з заголовка Authorization
       if (!token && socket.handshake.headers.authorization) {
         const authHeader = socket.handshake.headers.authorization;
         if (authHeader.startsWith("Bearer ")) {
-          token = authHeader.split(" ")[1]; // Видаляємо "Bearer "
+          token = authHeader.split(" ")[1];
         }
       }
 
@@ -41,71 +39,22 @@ module.exports = {
         }
 
         socket.user = decoded;
+        users.set(socket.user.id, socket.id);
         console.log(`🟢 User authenticated: ${socket.user.id}`);
         next();
       });
     });
 
     io.on("connection", (socket) => {
-      console.log(
-        `🟢 User ${socket.user.id} connected, socket ID: ${socket.id}`
-      );
-
-      socket.onAny((event, ...args) => {
-        console.log(`📩 Received event: ${event}`, args);
-      });
-
-      socket.on("joinChat", async (data) => {
-        console.log("joinChat received:", data);
-
-        if (!data || !data.chatId) {
-          console.log("🔴 Error: No chatId provided!");
-          return;
-        }
-
-        const chatId = data.chatId;
-
-        try {
-          const chat = await Chat.findById(chatId);
-          if (!chat) {
-            console.log("🔴 Error: Chat not found.");
-            return;
-          }
-
-          if (!chat.participants.includes(socket.user.id)) {
-            console.log("🔴 Error: User is not a participant of this chat.");
-            return;
-          }
-
-          socket.join(chatId);
-          console.log(`🟢 User ${socket.user.id} joined chat: ${chatId}`);
-
-          setTimeout(() => {
-            console.log("📌 All rooms:", io.of("/").adapter.rooms);
-            console.log(
-              `📌 Current users in chat ${chatId}:`,
-              io.of("/").adapter.rooms.get(chatId)
-            );
-          }, 1000);
-        } catch (error) {
-          console.log("🔴 Error joining chat:", error);
-        }
-      });
+      console.log(`🟢 User ${socket.user.id} connected`);
 
       socket.on("sendMessage", async (messageData) => {
-        console.log(`🔵 sendMessage received:`, messageData);
-
-        if (!socket.user) {
-          console.log("🔴 Error: User is not authenticated!");
-          return;
-        }
-
-        const { chatId, content } = messageData;
+        const { chatId, content, recipientId } = messageData;
         const senderId = socket.user.id;
         const senderModel =
           socket.user.role === "doctor" ? "Doctor" : "Patient";
 
-        if (!chatId || !content) {
+        if (!chatId || !content || !recipientId) {
           console.log("🔴 Error: Invalid message data", messageData);
           return;
         }
@@ -132,8 +81,14 @@ module.exports = {
 
           await message.save();
 
-          console.log(`🟢 Emitting receiveMessage to chat ${chatId}`, message);
-          io.to(chatId).emit("receiveMessage", message);
+          console.log(`🟢 Message sent to ${recipientId}`);
+
+          const recipientSocketId = users.get(recipientId);
+          if (recipientSocketId) {
+            io.to(recipientSocketId).emit("receiveMessage", message);
+          }
+
+          io.to(socket.id).emit("messageSent", message);
         } catch (error) {
           console.log("🔴 Error sending message:", error);
         }
@@ -141,6 +96,7 @@ module.exports = {
 
       socket.on("disconnect", () => {
         console.log(`🔴 User ${socket.user.id} disconnected`);
+        users.delete(socket.user.id);
       });
     });
 

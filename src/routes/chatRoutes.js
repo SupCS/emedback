@@ -156,12 +156,11 @@ router.post(
   "/message",
   authenticate(["doctor", "patient"]),
   async (req, res) => {
+    console.log(req.body);
     try {
       const { chatId, content } = req.body;
       const senderId = req.user.id; // ID користувача з токену
       const senderModel = req.user.role === "doctor" ? "Doctor" : "Patient";
-
-      const io = req.app.get("io");
 
       // Перевіряємо, чи чат існує
       const chat = await Chat.findById(chatId);
@@ -195,13 +194,12 @@ router.post(
       const message = new Message({
         chat: chatId,
         sender: senderId,
-        senderModel,
+        senderModel: req.body.senderModel,
         senderName: sender.name,
         content,
       });
 
       await message.save();
-      io.to(chatId).emit("receiveMessage", message);
       res.status(201).json(message);
     } catch (error) {
       res.status(500).json({ message: "Error sending message", error });
