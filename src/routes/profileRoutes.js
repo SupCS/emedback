@@ -301,4 +301,112 @@ const deleteEmptyFolders = (folderPath) => {
   }
 };
 
+/**
+ * @swagger
+ * /profile/update:
+ *   patch:
+ *     summary: Оновлення профілю користувача
+ *     tags:
+ *       - Profile
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               bio:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Профіль оновлено успішно
+ *       400:
+ *         description: Невалідні дані
+ *       403:
+ *         description: Доступ заборонено
+ *       404:
+ *         description: Користувача не знайдено
+ *       500:
+ *         description: Помилка сервера
+ */
+router.patch(
+  "/update",
+  authenticate(["doctor", "patient"]),
+  async (req, res) => {
+    const { name, phone, bio } = req.body;
+    const { id, role } = req.user;
+
+    try {
+      const Model = role === "doctor" ? Doctor : Patient;
+      const user = await Model.findById(id);
+
+      if (!user) {
+        return res.status(404).json({ message: "Користувача не знайдено." });
+      }
+
+      if (role === "patient") {
+        // Пацієнт може змінювати тільки name і phone
+        if (name !== undefined) {
+          const trimmed = name.trim();
+          if (
+            typeof name !== "string" ||
+            trimmed.length < 4 ||
+            !/^[a-zA-Zа-яА-ЯёЁіІїЇєЄґҐ']+$/.test(trimmed)
+          ) {
+            return res.status(400).json({
+              message: "Ім'я має складатись з 4 або більше",
+            });
+          }
+          user.name = trimmed;
+        }
+
+        if (phone !== undefined) {
+          if (!/^\+?[0-9]{10,15}$/.test(phone)) {
+            return res
+              .status(400)
+              .json({ message: "Невалідний номер телефону." });
+          }
+          user.phone = phone.trim();
+        }
+      } else if (role === "doctor") {
+        // Лікар може змінювати тільки bio і phone
+        if (bio !== undefined) {
+          if (typeof bio !== "string" || bio.trim().length < 10) {
+            return res
+              .status(400)
+              .json({ message: "Невалідне біо. Мінімум 10 символів." });
+          }
+          user.bio = bio.trim();
+        }
+
+        if (phone !== undefined) {
+          if (!/^\+?[0-9]{10,15}$/.test(phone)) {
+            return res
+              .status(400)
+              .json({ message: "Невалідний номер телефону." });
+          }
+          user.phone = phone.trim();
+        }
+      }
+
+      console.log("Перед збереженням:", user);
+      await user.save();
+      console.log("Після збереження:", user);
+
+      res.json({ message: "Профіль оновлено успішно." });
+    } catch (error) {
+      console.error("Помилка при оновленні профілю:", error);
+      res
+        .status(500)
+        .json({ message: "Помилка сервера при оновленні профілю." });
+    }
+  }
+);
+
 module.exports = router;
