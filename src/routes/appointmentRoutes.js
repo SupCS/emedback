@@ -89,7 +89,7 @@ router.post("/create", authenticate(["patient"]), async (req, res) => {
       date,
       startTime,
       endTime,
-      status: "confirmed",
+      status: { $in: ["pending", "confirmed"] },
     });
 
     if (existingAppointment) {
@@ -103,6 +103,7 @@ router.post("/create", authenticate(["patient"]), async (req, res) => {
       date,
       startTime,
       endTime,
+      status: "pending",
     });
 
     await newAppointment.save();
@@ -156,6 +157,82 @@ router.post("/create", authenticate(["patient"]), async (req, res) => {
     res.status(500).json({ message: "Something went wrong." });
   }
 });
+
+/**
+ * @swagger
+ * /appointments/{appointmentId}/status:
+ *   patch:
+ *     summary: Оновлення статусу запису лікарем
+ *     tags: [Appointments]
+ *     security:
+ *       - JWT: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID запису
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [confirmed, cancelled]
+ *     responses:
+ *       200:
+ *         description: Статус оновлено
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Appointment not found
+ *       400:
+ *         description: Invalid status
+ */
+router.patch(
+  "/:appointmentId/status",
+  authenticate(["doctor"]),
+  async (req, res) => {
+    const { appointmentId } = req.params;
+    const { status } = req.body;
+
+    if (!["confirmed", "cancelled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value." });
+    }
+
+    try {
+      const appointment = await Appointment.findById(appointmentId);
+
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found." });
+      }
+
+      // Перевіряємо, що саме цей лікар змінює
+      if (String(appointment.doctor) !== req.user.id) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      // Не дозволяємо підтвердження, якщо вже скасовано
+      if (appointment.status === "cancelled") {
+        return res
+          .status(400)
+          .json({ message: "Cannot update a cancelled appointment." });
+      }
+
+      appointment.status = status;
+      await appointment.save();
+
+      res.json({ message: `Appointment status updated to ${status}.` });
+    } catch (error) {
+      console.error("Error updating appointment status:", error);
+      res.status(500).json({ message: "Server error." });
+    }
+  }
+);
 
 /**
  * @swagger

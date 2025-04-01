@@ -7,6 +7,8 @@ const swaggerDocs = require("./config/swagger");
 const connectDB = require("./config/db");
 const socket = require("./socket"); // Імпортуємо WebSocket
 const path = require("path");
+const cron = require("node-cron");
+const updatePastAppointments = require("./scripts/updateAppointmentStatus");
 
 dotenv.config();
 connectDB();
@@ -26,6 +28,11 @@ swaggerDocs(app);
 // Запускаємо WebSocket після ініціалізації сервера
 const io = socket.init(server);
 app.set("io", io);
+
+cron.schedule("*/15 * * * *", () => {
+  console.log("⏱️ Перевірка записів на завершення...");
+  updatePastAppointments();
+});
 
 // Запуск сервера
 server.listen(PORT, () => {
