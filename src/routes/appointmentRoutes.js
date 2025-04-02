@@ -328,4 +328,71 @@ router.get(
   }
 );
 
+/**
+ * @swagger
+ * /appointments/{appointmentId}/cancel:
+ *   patch:
+ *     summary: Скасувати підтверджений запис
+ *     tags:
+ *       - Appointments
+ *     security:
+ *       - JWT: []
+ *     parameters:
+ *       - name: appointmentId
+ *         in: path
+ *         required: true
+ *         description: ID запису
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Appointment cancelled
+ *       400:
+ *         description: Invalid status or unauthorized
+ *       404:
+ *         description: Appointment not found
+ *       500:
+ *         description: Server error
+ */
+router.patch(
+  "/:appointmentId/cancel",
+  authenticate(["doctor", "patient"]),
+  async (req, res) => {
+    const { appointmentId } = req.params;
+    const { id, role } = req.user;
+
+    try {
+      const appointment = await Appointment.findById(appointmentId);
+
+      if (!appointment) {
+        return res.status(404).json({ message: "Appointment not found." });
+      }
+
+      // Перевірка чи користувач є учасником запису
+      const isOwner =
+        (role === "doctor" && String(appointment.doctor) === id) ||
+        (role === "patient" && String(appointment.patient) === id);
+
+      if (!isOwner) {
+        return res.status(403).json({ message: "Access denied." });
+      }
+
+      // Можна скасувати лише якщо статус був confirmed
+      if (appointment.status !== "confirmed") {
+        return res
+          .status(400)
+          .json({ message: "Only confirmed appointments can be cancelled." });
+      }
+
+      appointment.status = "cancelled";
+      await appointment.save();
+
+      res.json({ message: "Appointment cancelled successfully." });
+    } catch (error) {
+      console.error("Error cancelling appointment:", error);
+      res.status(500).json({ message: "Server error." });
+    }
+  }
+);
+
 module.exports = router;
