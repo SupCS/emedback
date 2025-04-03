@@ -4,37 +4,33 @@ const updatePastAppointments = async () => {
   try {
     const now = new Date();
 
-    // Знаходимо всі підтверджені записи, які вже завершилися
-    const appointmentsToUpdate = await Appointment.find({
+    const confirmedAppointments = await Appointment.find({
       status: "confirmed",
-      $expr: {
-        $lt: [
-          {
-            $dateFromString: {
-              dateString: { $concat: ["$date", "T", "$endTime"] },
-            },
-          },
-          now,
-        ],
-      },
     });
 
-    if (appointmentsToUpdate.length > 0) {
-      console.log(
-        `Знайдено записів для оновлення: ${appointmentsToUpdate.length}`
-      );
+    const appointmentsToUpdate = [];
 
+    for (const appointment of confirmedAppointments) {
+      const fullDateTimeStr = `${appointment.date}T${appointment.endTime}:00`;
+      const endDateTime = new Date(fullDateTimeStr);
+
+      if (endDateTime < now) {
+        appointmentsToUpdate.push(appointment);
+      }
+    }
+
+    if (appointmentsToUpdate.length > 0) {
       for (const appointment of appointmentsToUpdate) {
         appointment.status = "passed";
         await appointment.save();
       }
 
-      console.log("Статуси оновлено.");
-    } else {
-      console.log("ℹНемає записів для оновлення.");
+      console.log(
+        `✅ Оновлено статус до "passed" у ${appointmentsToUpdate.length} записів.`
+      );
     }
   } catch (error) {
-    console.error("Помилка при оновленні статусів записів:", error);
+    console.error("❌ Помилка при оновленні статусів записів:", error);
   }
 };
 

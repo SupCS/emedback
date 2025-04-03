@@ -5,6 +5,8 @@ const DoctorSchedule = require("../models/DoctorSchedule");
 const Chat = require("../models/Chat");
 const authenticate = require("../middleware/authMiddleware");
 const router = express.Router();
+const { scheduleAppointmentJob } = require("../utils/scheduler");
+const { getIoUsers } = require("../socket");
 
 /**
  * @swagger
@@ -225,6 +227,35 @@ router.patch(
 
       appointment.status = status;
       await appointment.save();
+
+      // Якщо статус підтверджено — плануємо сповіщення
+      if (status === "confirmed") {
+        const io = req.app.get("io");
+        const users = getIoUsers();
+
+        const chat = await Chat.findOne({
+          participants: { $all: [appointment.doctor, appointment.patient] },
+        });
+
+        scheduleAppointmentJob(appointment, (appt) => {
+          const payload = {
+            message: "Ваш прийом починається!",
+            appointmentId: appt._id,
+            chatId: chat?._id || null,
+          };
+          console.log("payload: ", payload);
+          console.log("users: ", users);
+          const patientSocketId = users.get(appt.patient.toString());
+          const doctorSocketId = users.get(appt.doctor.toString());
+
+          if (patientSocketId) {
+            io.to(patientSocketId).emit("appointmentStart", payload);
+          }
+          if (doctorSocketId) {
+            io.to(doctorSocketId).emit("appointmentStart", payload);
+          }
+        });
+      }
 
       res.json({ message: `Appointment status updated to ${status}.` });
     } catch (error) {

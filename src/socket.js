@@ -109,4 +109,5 @@ module.exports = {
     }
     return io;
   },
+  getIoUsers: () => users,
 };

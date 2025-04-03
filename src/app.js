@@ -9,6 +9,7 @@ const socket = require("./socket"); // Імпортуємо WebSocket
 const path = require("path");
 const cron = require("node-cron");
 const updatePastAppointments = require("./scripts/updateAppointmentStatus");
+const { rescheduleAllAppointments } = require("./utils/scheduler");
 
 dotenv.config();
 connectDB();
@@ -29,10 +30,17 @@ swaggerDocs(app);
 const io = socket.init(server);
 app.set("io", io);
 
-cron.schedule("*/15 * * * *", () => {
+// Перевірка записів на завершення кожні 5 хвилин
+cron.schedule("*/5 * * * *", () => {
   console.log("⏱️ Перевірка записів на завершення...");
   updatePastAppointments();
 });
+
+// Також виконуємо перевірку одразу при запуску сервера
+updatePastAppointments();
+
+// Переплановуємо всі підтверджені майбутні апоінтменти одразу після запуску
+rescheduleAllAppointments(io);
 
 // Запуск сервера
 server.listen(PORT, () => {
