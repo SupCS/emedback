@@ -426,4 +426,47 @@ router.patch(
   }
 );
 
+router.get(
+  "/active/:chatId",
+  authenticate(["doctor", "patient"]),
+  async (req, res) => {
+    const { chatId } = req.params;
+
+    try {
+      const chat = await Chat.findById(chatId);
+      if (!chat) return res.status(404).json({ message: "Чат не знайдено" });
+
+      const [participant1, participant2] = chat.participants;
+
+      const now = new Date();
+      const today = now.toISOString().split("T")[0]; // YYYY-MM-DD
+
+      const appointment = await Appointment.findOne({
+        doctor: { $in: [participant1, participant2] },
+        patient: { $in: [participant1, participant2] },
+        status: "confirmed",
+        date: today,
+      });
+
+      if (!appointment) {
+        return res.json({ isActive: false });
+      }
+
+      const startDateTime = new Date(
+        `${appointment.date}T${appointment.startTime}:00`
+      );
+      const endDateTime = new Date(
+        `${appointment.date}T${appointment.endTime}:00`
+      );
+
+      const isActive = now >= startDateTime && now < endDateTime;
+
+      return res.json({ isActive, appointment });
+    } catch (error) {
+      console.error("❌ Помилка при перевірці апоінтменту:", error);
+      res.status(500).json({ message: "Помилка сервера" });
+    }
+  }
+);
+
 module.exports = router;
