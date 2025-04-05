@@ -1,2 +1,4 @@
 node_modules/
 .env
+/src/config/emed-video-firebase-adminsdk-fbsvc-32da974313.json
+/src/config/*firebase-adminsdk*.json

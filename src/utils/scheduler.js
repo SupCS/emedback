@@ -1,5 +1,6 @@
 const schedule = require("node-schedule");
 const Appointment = require("../models/Appointment");
+const { db } = require("../config/firebase");
 
 const scheduledJobs = new Map();
 
@@ -14,9 +15,39 @@ function scheduleAppointmentJob(appointment, callback) {
     `🕓 Заплановано на: ${dateTime.toISOString()} (локальний час: ${dateTime.toLocaleString()})`
   );
 
-  const job = schedule.scheduleJob(dateTime, () => {
+  const job = schedule.scheduleJob(dateTime, async () => {
     console.log(`🚨 Час прийому настав для appointment ${_id}`);
-    callback(appointment);
+
+    try {
+      const callRef = db.collection("calls").doc();
+
+      await callRef.set({
+        appointmentId: _id.toString(),
+        createdAt: new Date().toISOString(),
+      });
+
+      console.log(`✅ WebRTC кімната створена: calls/${callRef.id}`);
+
+      // 🟡 Отримуємо актуальний appointment з бази
+      const freshAppointment = await Appointment.findById(_id);
+
+      // 🟢 Передаємо його в callback з firestoreCallId
+      if (freshAppointment) {
+        callback({
+          ...freshAppointment.toObject(),
+          firestoreCallId: callRef.id,
+        });
+      } else {
+        console.error(
+          "❌ Appointment не знайдено у момент створення WebRTC-кімнати"
+        );
+        callback(null);
+      }
+    } catch (err) {
+      console.error("❌ Помилка при створенні WebRTC кімнати:", err);
+      callback(null);
+    }
+
     scheduledJobs.delete(_id.toString());
   });
 
@@ -61,6 +92,7 @@ async function rescheduleAllAppointments(io) {
           message: "Ваш прийом починається!",
           appointmentId: readyAppt._id,
           chatId: chatId,
+          firestoreCallId: readyAppt.firestoreCallId || null,
         };
 
         const users = require("../socket").getIoUsers();

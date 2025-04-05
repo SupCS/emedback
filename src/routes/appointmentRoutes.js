@@ -7,6 +7,7 @@ const authenticate = require("../middleware/authMiddleware");
 const router = express.Router();
 const { scheduleAppointmentJob } = require("../utils/scheduler");
 const { getIoUsers } = require("../socket");
+const { db } = require("../config/firebase");
 
 /**
  * @swagger
@@ -461,7 +462,25 @@ router.get(
 
       const isActive = now >= startDateTime && now < endDateTime;
 
-      return res.json({ isActive, appointment });
+      let firestoreCallId = null;
+
+      if (isActive) {
+        // 🔍 Пошук WebRTC-кімнати у Firestore за appointmentId
+        const callsSnapshot = await db
+          .collection("calls")
+          .where("appointmentId", "==", appointment._id.toString())
+          .get();
+
+        if (!callsSnapshot.empty) {
+          firestoreCallId = callsSnapshot.docs[0].id;
+        }
+      }
+
+      return res.json({
+        isActive,
+        appointment,
+        firestoreCallId, // 🟢 Додано до відповіді
+      });
     } catch (error) {
       console.error("❌ Помилка при перевірці апоінтменту:", error);
       res.status(500).json({ message: "Помилка сервера" });
