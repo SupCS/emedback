@@ -33,9 +33,14 @@ const doctorSchema = new mongoose.Schema({
   },
   rating: {
     type: Number,
-    default: 0,
+    default: null,
     min: 0,
     max: 5,
+  },
+  ratingCount: {
+    type: Number,
+    default: 0,
+    min: 0,
   },
   bio: {
     type: String,

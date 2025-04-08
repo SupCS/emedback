@@ -48,26 +48,35 @@ router.get("/", async (req, res) => {
   try {
     const { specialization, rating } = req.query;
 
-    // Створюємо об'єкт для фільтрації
-    let filter = {};
+    let baseFilter = {};
 
-    // Якщо передано кілька спеціалізацій (через кому) – фільтруємо за ними
     if (specialization) {
-      const specializations = specialization.split(","); // Розділяємо по комі
-      filter.specialization = { $in: specializations };
+      const specializations = specialization.split(",");
+      baseFilter.specialization = { $in: specializations };
     }
 
-    // Фільтрація за рейтингом (>= заданому)
+    // Отримуємо ВСІХ лікарів за спеціалізацією
+    const allDoctors = await Doctor.find(baseFilter)
+      .select("name specialization rating ratingCount avatar")
+      .sort({ rating: -1 }); // попереднє сортування для зручності
+
     if (rating) {
-      filter.rating = { $gte: parseFloat(rating) };
+      const minRating = parseFloat(rating);
+
+      const suitableDoctors = allDoctors.filter(
+        (doc) => doc.rating !== null && doc.rating >= minRating
+      );
+      const otherDoctors = allDoctors.filter(
+        (doc) => doc.rating === null || doc.rating < minRating
+      );
+
+      const sortedDoctors = [...suitableDoctors, ...otherDoctors];
+
+      return res.status(200).json(sortedDoctors);
     }
 
-    // Отримуємо список лікарів за фільтром
-    const doctors = await Doctor.find(filter)
-      .select("name specialization rating avatar") // Повертаємо тільки потрібні поля
-      .sort({ rating: -1 }); // Сортуємо за рейтингом за спаданням
-
-    res.status(200).json(doctors);
+    // Якщо фільтр за рейтингом не задано — просто повертаємо всіх
+    res.status(200).json(allDoctors);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Something went wrong." });
@@ -119,7 +128,7 @@ router.get("/details/:doctorId", async (req, res) => {
 
   try {
     const doctor = await Doctor.findById(doctorId).select(
-      "name email specialization experience rating bio avatar"
+      "name email specialization experience rating ratingCount bio avatar"
     );
 
     if (!doctor) {
