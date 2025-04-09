@@ -1,6 +1,7 @@
 const express = require("express");
 const http = require("http");
 const dotenv = require("dotenv");
+dotenv.config();
 const cors = require("cors");
 const routes = require("./routes");
 const swaggerDocs = require("./config/swagger");
@@ -11,7 +12,6 @@ const cron = require("node-cron");
 const updatePastAppointments = require("./scripts/updateAppointmentStatus");
 const { rescheduleAllAppointments } = require("./utils/scheduler");
 
-dotenv.config();
 connectDB();
 
 const app = express();

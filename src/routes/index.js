@@ -9,6 +9,7 @@ const chatRoutes = require("./chatRoutes");
 const prescriptionRoutes = require("./prescriptionRoutes");
 const callRoutes = require("./callRoutes");
 const ratingRoutes = require("./ratingRoutes");
+const aiRoutes = require("./aiRoutes");
 
 // Тестовий ендпоїнт (головна сторінка)
 router.get("/", (req, res) => {
@@ -25,5 +26,6 @@ router.use("/chat", chatRoutes);
 router.use("/prescriptions", prescriptionRoutes);
 router.use("/calls", callRoutes);
 router.use("/ratings", ratingRoutes);
+router.use("/ai", aiRoutes);
 
 module.exports = router;
