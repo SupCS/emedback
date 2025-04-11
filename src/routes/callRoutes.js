@@ -1,55 +1,53 @@
 const express = require("express");
-const { db } = require("../config/firebase");
-const Appointment = require("../models/Appointment");
-const authenticate = require("../middleware/authMiddleware");
-
 const router = express.Router();
+const authenticate = require("../middleware/authMiddleware");
+const { verifyCallAccess } = require("../controllers/callController");
 
 /**
- * @route GET /calls/:callId
- * @desc Перевірка доступу до WebRTC кімнати
- * @access Private (doctor/patient)
+ * @swagger
+ * tags:
+ *   - name: Calls
+ *     description: Доступ до WebRTC кімнат
  */
-router.get(
-  "/:callId",
-  authenticate(["doctor", "patient"]),
-  async (req, res) => {
-    const { callId } = req.params;
-    const userId = req.user.id;
 
-    try {
-      const callDoc = await db.collection("calls").doc(callId).get();
-
-      if (!callDoc.exists) {
-        return res.status(404).json({ message: "Кімната не знайдена." });
-      }
-
-      const { appointmentId } = callDoc.data();
-
-      const appointment = await Appointment.findById(appointmentId);
-      if (!appointment) {
-        return res.status(404).json({ message: "Прийом не знайдено." });
-      }
-
-      const isDoctor = appointment.doctor.toString() === userId;
-      const isPatient = appointment.patient.toString() === userId;
-
-      if (!isDoctor && !isPatient) {
-        return res.status(403).json({ message: "Доступ заборонено." });
-      }
-
-      const role = isDoctor ? "doctor" : "patient";
-
-      return res.json({
-        message: "Доступ дозволено.",
-        appointmentId,
-        role,
-      });
-    } catch (error) {
-      console.error("❌ Помилка при перевірці доступу до кімнати:", error);
-      res.status(500).json({ message: "Помилка сервера." });
-    }
-  }
-);
+/**
+ * @swagger
+ * /calls/{callId}:
+ *   get:
+ *     summary: Перевірка доступу до WebRTC кімнати
+ *     tags: [Calls]
+ *     security:
+ *       - JWT: []
+ *     parameters:
+ *       - name: callId
+ *         in: path
+ *         required: true
+ *         description: ID WebRTC-кімнати у Firestore
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Доступ дозволено
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Доступ дозволено.
+ *                 appointmentId:
+ *                   type: string
+ *                 role:
+ *                   type: string
+ *                   enum: [doctor, patient]
+ *       403:
+ *         description: Доступ заборонено
+ *       404:
+ *         description: Кімната або прийом не знайдено
+ *       500:
+ *         description: Помилка сервера
+ */
+router.get("/:callId", authenticate(["doctor", "patient"]), verifyCallAccess);
 
 module.exports = router;

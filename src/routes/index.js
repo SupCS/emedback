@@ -11,11 +11,6 @@ const callRoutes = require("./callRoutes");
 const ratingRoutes = require("./ratingRoutes");
 const aiRoutes = require("./aiRoutes");
 
-// Тестовий ендпоїнт (головна сторінка)
-router.get("/", (req, res) => {
-  res.send("Hello World!");
-});
-
 // Маршрути для аутентифікації
 router.use("/auth", authRoutes);
 router.use("/profile", profileRoutes);
