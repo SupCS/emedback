@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const patientSchema = new mongoose.Schema({
+  // Основні дані
   name: {
     type: String,
     required: true,
@@ -21,13 +22,53 @@ const patientSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  avatar: {
+    type: String,
+    default: null,
+  },
+
+  // Біологічні дані
+  birthDate: {
+    type: Date,
+    required: false,
+  },
+  height: {
+    type: Number, // В сантиметрах
+    required: false,
+  },
+  weight: {
+    type: Number, // В кілограмах
+    required: false,
+  },
+  bloodType: {
+    type: String,
+    enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
+    required: false,
+  },
+  gender: {
+    type: String,
+    enum: ["male", "female", "other"],
+    required: false,
+  },
+
+  // Медичні дані
+  allergies: {
+    type: [String],
+    default: [],
+  },
+  chronicDiseases: {
+    type: [String],
+    default: [],
+  },
+
+  // Медичні записи
   medicalRecords: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: "MedicalRecord",
     },
   ],
-  avatar: { type: String, default: null },
+
   createdAt: {
     type: Date,
     default: Date.now,
@@ -35,5 +76,4 @@ const patientSchema = new mongoose.Schema({
 });
 
 const Patient = mongoose.model("Patient", patientSchema);
-
 module.exports = Patient;

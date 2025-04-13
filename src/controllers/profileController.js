@@ -60,9 +60,20 @@ exports.getPatientProfile = async (req, res) => {
       name: patient.name,
       email: patient.email,
       phone: patient.phone,
-      medicalRecords: patient.medicalRecords,
-      prescriptions: patient.prescriptions,
       avatar: patient.avatar || null,
+      medicalRecords: patient.medicalRecords,
+      prescriptions: patient.prescriptions || [],
+
+      // Біо-дані
+      birthDate: patient.birthDate,
+      height: patient.height,
+      weight: patient.weight,
+      bloodType: patient.bloodType,
+      gender: patient.gender,
+
+      // Медичні дані
+      allergies: patient.allergies,
+      chronicDiseases: patient.chronicDiseases,
     });
   } catch (error) {
     console.error(error);
@@ -134,7 +145,18 @@ exports.getAvatar = (req, res) => {
 
 // Оновлення профілю лікаря або пацієнта
 exports.updateProfile = async (req, res) => {
-  const { name, phone, bio } = req.body;
+  const {
+    name,
+    phone,
+    bio,
+    birthDate,
+    height,
+    weight,
+    bloodType,
+    gender,
+    allergies,
+    chronicDiseases,
+  } = req.body;
   const { id, role } = req.user;
 
   try {
@@ -151,11 +173,11 @@ exports.updateProfile = async (req, res) => {
         if (
           typeof name !== "string" ||
           trimmed.length < 4 ||
-          !/^[a-zA-Zа-яА-ЯёЁіІїЇєЄґҐ']+$/.test(trimmed)
+          !/^[a-zA-Zа-яА-ЯёЁіІїЇєЄґҐ' ]+$/.test(trimmed)
         ) {
           return res
             .status(400)
-            .json({ message: "Ім'я має складатись з 4 або більше" });
+            .json({ message: "Ім'я має містити щонайменше 4 літери" });
         }
         user.name = trimmed;
       }
@@ -168,7 +190,84 @@ exports.updateProfile = async (req, res) => {
         }
         user.phone = phone.trim();
       }
-    } else if (role === "doctor") {
+
+      if (birthDate !== undefined) {
+        const date = new Date(birthDate);
+        if (isNaN(date.getTime())) {
+          return res
+            .status(400)
+            .json({ message: "Невалідна дата народження." });
+        }
+        user.birthDate = date;
+      }
+
+      if (height !== undefined) {
+        const h = Number(height);
+        if (isNaN(h) || h < 30 || h > 300) {
+          return res
+            .status(400)
+            .json({ message: "Зріст має бути в межах 30–300 см." });
+        }
+        user.height = h;
+      }
+
+      if (weight !== undefined) {
+        const w = Number(weight);
+        if (isNaN(w) || w < 2 || w > 500) {
+          return res
+            .status(400)
+            .json({ message: "Вага має бути в межах 2–500 кг." });
+        }
+        user.weight = w;
+      }
+
+      if (bloodType !== undefined) {
+        const validBloodTypes = [
+          "A+",
+          "A-",
+          "B+",
+          "B-",
+          "AB+",
+          "AB-",
+          "O+",
+          "O-",
+        ];
+        if (!validBloodTypes.includes(bloodType)) {
+          return res.status(400).json({ message: "Невірна група крові." });
+        }
+        user.bloodType = bloodType;
+      }
+
+      if (gender !== undefined) {
+        const validGenders = ["male", "female", "other"];
+        if (!validGenders.includes(gender)) {
+          return res.status(400).json({ message: "Невірно вказана стать." });
+        }
+        user.gender = gender;
+      }
+
+      if (allergies !== undefined) {
+        if (!Array.isArray(allergies)) {
+          return res
+            .status(400)
+            .json({ message: "Алергії мають бути масивом." });
+        }
+        user.allergies = allergies.map((a) => String(a).trim()).filter(Boolean);
+      }
+
+      if (chronicDiseases !== undefined) {
+        if (!Array.isArray(chronicDiseases)) {
+          return res
+            .status(400)
+            .json({ message: "Діагнози мають бути масивом." });
+        }
+        user.chronicDiseases = chronicDiseases
+          .map((d) => String(d).trim())
+          .filter(Boolean);
+      }
+    }
+
+    if (role === "doctor") {
       if (bio !== undefined) {
         if (typeof bio !== "string" || bio.trim().length < 10) {
           return res
