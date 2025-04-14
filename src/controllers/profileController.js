@@ -3,6 +3,7 @@ const Doctor = require("../models/Doctor");
 const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
+const Appointment = require("../models/Appointment");
 
 // Отримання профілю лікаря
 exports.getDoctorProfile = async (req, res) => {
@@ -18,6 +19,12 @@ exports.getDoctorProfile = async (req, res) => {
       return res.status(404).json({ message: "Doctor not found." });
     }
 
+    // рахуємо кількість завершених прийомів
+    const passedAppointmentsCount = await Appointment.countDocuments({
+      doctor: doctor._id,
+      status: "passed",
+    });
+
     res.status(200).json({
       id: doctor._id,
       name: doctor.name,
@@ -30,6 +37,7 @@ exports.getDoctorProfile = async (req, res) => {
       awards: doctor.awards,
       schedule: doctor.schedule,
       avatar: doctor.avatar || null,
+      passedAppointmentsCount,
     });
   } catch (error) {
     console.error(error);
@@ -269,10 +277,10 @@ exports.updateProfile = async (req, res) => {
 
     if (role === "doctor") {
       if (bio !== undefined) {
-        if (typeof bio !== "string" || bio.trim().length < 10) {
+        if (typeof bio !== "string") {
           return res
             .status(400)
-            .json({ message: "Невалідне біо. Мінімум 10 символів." });
+            .json({ message: "Невалідне біо. Має бути рядком." });
         }
         user.bio = bio.trim();
       }
