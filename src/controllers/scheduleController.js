@@ -137,10 +137,9 @@ exports.getDoctorSchedule = async (req, res) => {
 
   try {
     let schedule = await DoctorSchedule.findOne({ doctorId });
+
     if (!schedule) {
-      return res
-        .status(404)
-        .json({ message: "No schedule found for this doctor." });
+      return res.status(200).json({ doctorId, availability: [] });
     }
 
     const now = new Date();
