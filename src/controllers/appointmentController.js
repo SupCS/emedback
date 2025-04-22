@@ -1,11 +1,8 @@
-// controllers/appointmentController.js
-
 const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
 const DoctorSchedule = require("../models/DoctorSchedule");
 const Chat = require("../models/Chat");
 const { scheduleAppointmentJob } = require("../utils/scheduler");
-const { getIoUsers } = require("../socket");
 const { db } = require("../config/firebase");
 
 exports.createAppointment = async (req, res) => {
@@ -124,26 +121,7 @@ exports.updateAppointmentStatus = async (req, res) => {
 
     if (status === "confirmed") {
       const io = req.app.get("io");
-      const users = getIoUsers();
-      const chat = await Chat.findOne({
-        participants: { $all: [appointment.doctor, appointment.patient] },
-      });
-
-      scheduleAppointmentJob(appointment, (appt) => {
-        const payload = {
-          message: "Ваш прийом починається!",
-          appointmentId: appt._id,
-          chatId: chat?._id || null,
-        };
-
-        const patientSocketId = users.get(appt.patient.toString());
-        const doctorSocketId = users.get(appt.doctor.toString());
-
-        if (patientSocketId)
-          io.to(patientSocketId).emit("appointmentStart", payload);
-        if (doctorSocketId)
-          io.to(doctorSocketId).emit("appointmentStart", payload);
-      });
+      scheduleAppointmentJob(appointment, io);
     }
 
     res.json({ message: `Appointment status updated to ${status}.` });
