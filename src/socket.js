@@ -4,8 +4,9 @@ const Chat = require("./models/Chat");
 const Message = require("./models/Message");
 
 let io;
-const users = new Map(); // userId → socketId
-const roomSockets = new Map(); // callId → Set of socketIds
+const users = new Map(); // userId → Set<socketId>
+const roomSockets = new Map(); // callId → Set<socketId>
+const socketToRoom = new Map(); // socketId → callId
 
 module.exports = {
   init: (server) => {
@@ -40,7 +41,12 @@ module.exports = {
         }
 
         socket.user = decoded;
-        users.set(socket.user.id, socket.id);
+
+        if (!users.has(socket.user.id)) {
+          users.set(socket.user.id, new Set());
+        }
+        users.get(socket.user.id).add(socket.id);
+
         console.log(`🟢 User authenticated: ${socket.user.id}`);
         next();
       });
@@ -77,9 +83,11 @@ module.exports = {
 
           await message.save();
 
-          const recipientSocketId = users.get(recipientId);
-          if (recipientSocketId) {
-            io.to(recipientSocketId).emit("receiveMessage", message);
+          const recipientSockets = users.get(recipientId);
+          if (recipientSockets) {
+            for (const sockId of recipientSockets) {
+              io.to(sockId).emit("receiveMessage", message);
+            }
           }
 
           io.to(socket.id).emit("messageSent", message);
@@ -93,6 +101,7 @@ module.exports = {
       socket.on("join-room", ({ callId }) => {
         console.log(`📞 ${socket.user.id} приєднався до кімнати ${callId}`);
         socket.join(callId);
+        socketToRoom.set(socket.id, callId);
 
         if (!roomSockets.has(callId)) {
           roomSockets.set(callId, new Set());
@@ -151,26 +160,40 @@ module.exports = {
         const participants = roomSockets.get(callId);
         if (participants) {
           participants.delete(socket.id);
-          // Сповіщаємо інших
+          socketToRoom.delete(socket.id);
           socket.to(callId).emit("user-left", { socketId: socket.id });
+
           if (participants.size === 0) {
             roomSockets.delete(callId);
           }
         }
       });
 
+      // ------------------ ВИХІД ------------------
+
       socket.on("disconnect", () => {
         console.log(`🔴 User ${socket.user.id} disconnected`);
-        users.delete(socket.user.id);
 
-        // видалити з усіх кімнат
-        for (const [callId, sockets] of roomSockets.entries()) {
-          sockets.delete(socket.id);
-          // 🔔 Сповіщаємо
-          socket.to(callId).emit("user-left", { socketId: socket.id });
-          if (sockets.size === 0) {
-            roomSockets.delete(callId);
+        const userSockets = users.get(socket.user.id);
+        if (userSockets) {
+          userSockets.delete(socket.id);
+          if (userSockets.size === 0) {
+            users.delete(socket.user.id);
           }
+        }
+
+        const callId = socketToRoom.get(socket.id);
+        if (callId) {
+          const participants = roomSockets.get(callId);
+          if (participants) {
+            participants.delete(socket.id);
+            socket.to(callId).emit("user-left", { socketId: socket.id });
+
+            if (participants.size === 0) {
+              roomSockets.delete(callId);
+            }
+          }
+          socketToRoom.delete(socket.id);
         }
       });
     });
