@@ -121,9 +121,25 @@ exports.getUnreadMessages = async (req, res) => {
     const { userId } = req.params;
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
+    // Знаходимо всі чати, де user є учасником
+    const chats = await Chat.find({ participants: userObjectId }).select("_id");
+    const allowedChatIds = chats.map((chat) => chat._id);
+
+    // Рахуємо анріди, тільки якщо чат у цьому списку
     const unreadMessages = await Message.aggregate([
-      { $match: { read: false, sender: { $ne: userObjectId } } },
-      { $group: { _id: "$chat", count: { $sum: 1 } } },
+      {
+        $match: {
+          read: false,
+          sender: { $ne: userObjectId },
+          chat: { $in: allowedChatIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$chat",
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const unreadCounts = unreadMessages.reduce((acc, item) => {
@@ -133,6 +149,7 @@ exports.getUnreadMessages = async (req, res) => {
 
     res.json(unreadCounts);
   } catch (error) {
+    console.error("❌ Помилка при отриманні анрідів:", error);
     res.status(500).json({ message: "Error fetching unread messages", error });
   }
 };
