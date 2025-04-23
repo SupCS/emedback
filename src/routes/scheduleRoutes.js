@@ -11,14 +11,14 @@ const {
  * @swagger
  * tags:
  *   name: Schedule
- *   description: Керування графіком лікарів
+ *   description: Управління графіком лікарів
  */
 
 /**
  * @swagger
  * /schedule/add:
  *   post:
- *     summary: Додавання або оновлення слоту лікарем
+ *     summary: Додати або оновити слот лікаря
  *     tags: [Schedule]
  *     security:
  *       - bearerAuth: []
@@ -31,25 +31,29 @@ const {
  *             properties:
  *               date:
  *                 type: string
+ *                 description: Дата, до якої додаються слоти (формат YYYY-MM-DD)
  *                 example: "2025-03-01"
  *               slots:
  *                 type: array
+ *                 description: Масив слотів з часом початку і завершення
  *                 items:
  *                   type: object
  *                   properties:
  *                     startTime:
  *                       type: string
+ *                       description: Час початку (формат HH:mm)
  *                       example: "10:00"
  *                     endTime:
  *                       type: string
+ *                       description: Час завершення (формат HH:mm)
  *                       example: "11:00"
  *     responses:
  *       201:
- *         description: Schedule updated successfully
+ *         description: Графік успішно оновлено
  *       400:
- *         description: Invalid data format or overlapping slots
+ *         description: Некоректний формат даних або перетин з існуючими слотами/апоінтментами
  *       500:
- *         description: Something went wrong
+ *         description: Внутрішня помилка сервера
  */
 router.post("/add", authenticate(["doctor"]), addOrUpdateSlot);
 
@@ -57,7 +61,7 @@ router.post("/add", authenticate(["doctor"]), addOrUpdateSlot);
  * @swagger
  * /schedule/remove-slot:
  *   delete:
- *     summary: Видалення слоту лікарем
+ *     summary: Видалити слот з графіка лікаря
  *     tags: [Schedule]
  *     security:
  *       - bearerAuth: []
@@ -70,22 +74,25 @@ router.post("/add", authenticate(["doctor"]), addOrUpdateSlot);
  *             properties:
  *               date:
  *                 type: string
+ *                 description: Дата, для якої видаляється слот
  *                 example: "2025-03-01"
  *               startTime:
  *                 type: string
+ *                 description: Час початку слоту
  *                 example: "10:00"
  *               endTime:
  *                 type: string
+ *                 description: Час завершення слоту
  *                 example: "11:00"
  *     responses:
  *       200:
- *         description: Slot removed successfully
+ *         description: Слот успішно видалено
  *       400:
- *         description: Invalid data format
+ *         description: Некоректний формат запиту
  *       404:
- *         description: Schedule or Slot not found
+ *         description: Графік або слот не знайдено
  *       500:
- *         description: Something went wrong
+ *         description: Внутрішня помилка сервера
  */
 router.delete("/remove-slot", authenticate(["doctor"]), removeSlot);
 
@@ -93,7 +100,7 @@ router.delete("/remove-slot", authenticate(["doctor"]), removeSlot);
  * @swagger
  * /schedule/{doctorId}:
  *   get:
- *     summary: Отримання графіка лікаря
+ *     summary: Отримати актуальний графік лікаря
  *     tags: [Schedule]
  *     parameters:
  *       - name: doctorId
@@ -101,14 +108,15 @@ router.delete("/remove-slot", authenticate(["doctor"]), removeSlot);
  *         required: true
  *         schema:
  *           type: string
- *           example: "609e1267b5a4a200157d8393"
+ *         description: ID лікаря
+ *         example: "609e1267b5a4a200157d8393"
  *     responses:
  *       200:
- *         description: Schedule fetched successfully
+ *         description: Графік успішно отримано
  *       404:
- *         description: No schedule found for this doctor
+ *         description: Графік не знайдено
  *       500:
- *         description: Something went wrong
+ *         description: Внутрішня помилка сервера
  */
 router.get("/:doctorId", getDoctorSchedule);
 

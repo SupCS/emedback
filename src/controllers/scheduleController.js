@@ -1,4 +1,5 @@
 const DoctorSchedule = require("../models/DoctorSchedule");
+const Appointment = require("../models/Appointment");
 
 // Перевірка перетину слотів
 const isOverlapping = (existingSlots, newSlot) => {
@@ -9,6 +10,24 @@ const isOverlapping = (existingSlots, newSlot) => {
     const existingStart = parseInt(slot.startTime.replace(":", ""), 10);
     const existingEnd = parseInt(slot.endTime.replace(":", ""), 10);
     return newStart < existingEnd && newEnd > existingStart;
+  });
+};
+
+// Перевірка перетину з апоінтментами
+const isOverlappingWithAppointments = async (doctorId, date, slot) => {
+  const appointments = await Appointment.find({
+    doctor: doctorId,
+    date,
+    status: { $in: ["pending", "confirmed"] },
+  });
+
+  const newStart = parseInt(slot.startTime.replace(":", ""), 10);
+  const newEnd = parseInt(slot.endTime.replace(":", ""), 10);
+
+  return appointments.some((appt) => {
+    const apptStart = parseInt(appt.startTime.replace(":", ""), 10);
+    const apptEnd = parseInt(appt.endTime.replace(":", ""), 10);
+    return newStart < apptEnd && newEnd > apptStart;
   });
 };
 
@@ -33,19 +52,31 @@ exports.addOrUpdateSlot = async (req, res) => {
   const doctorId = req.user.id;
 
   if (!date || !slots || !Array.isArray(slots)) {
-    return res.status(400).json({ message: "Invalid data format." });
+    return res.status(400).json({ message: "Невірний формат даних." });
   }
 
   for (let slot of slots) {
     if (!isValidSlotDuration(slot.startTime, slot.endTime)) {
       return res.status(400).json({
-        message: `Slot ${slot.startTime} - ${slot.endTime} must be between 10 minutes and 2 hours.`,
+        message: `Слот ${slot.startTime} - ${slot.endTime} повинен бути тривалістю від 10 хвилин до 2 годин.`,
       });
     }
 
     if (!isFutureDate(date, slot.startTime)) {
       return res.status(400).json({
-        message: `Slot ${slot.startTime} on ${date} is in the past and cannot be created.`,
+        message: `Слот ${slot.startTime} на ${date} знаходиться в минулому і не може бути створений.`,
+      });
+    }
+
+    const overlapsWithAppointments = await isOverlappingWithAppointments(
+      doctorId,
+      date,
+      slot
+    );
+
+    if (overlapsWithAppointments) {
+      return res.status(400).json({
+        message: `Слот ${slot.startTime} - ${slot.endTime} перетинається з існуючим записом на прийом на ${date}.`,
       });
     }
   }
@@ -67,7 +98,7 @@ exports.addOrUpdateSlot = async (req, res) => {
         for (let newSlot of slots) {
           if (isOverlapping(daySchedule.slots, newSlot)) {
             return res.status(400).json({
-              message: `Slot ${newSlot.startTime} - ${newSlot.endTime} overlaps with an existing slot on ${date}.`,
+              message: `Слот ${newSlot.startTime} - ${newSlot.endTime} перетинається з існуючим слотом на ${date}.`,
             });
           }
         }
@@ -76,12 +107,10 @@ exports.addOrUpdateSlot = async (req, res) => {
     }
 
     await schedule.save();
-    res
-      .status(201)
-      .json({ message: "Schedule updated successfully", schedule });
+    res.status(201).json({ message: "Графік успішно оновлено", schedule });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка при оновленні графіка:", error);
+    res.status(500).json({ message: "Сталася помилка на сервері." });
   }
 };
 
@@ -91,20 +120,20 @@ exports.removeSlot = async (req, res) => {
   const doctorId = req.user.id;
 
   if (!date || !startTime || !endTime) {
-    return res.status(400).json({ message: "Invalid data format." });
+    return res.status(400).json({ message: "Невірний формат даних." });
   }
 
   try {
     let schedule = await DoctorSchedule.findOne({ doctorId });
     if (!schedule) {
-      return res.status(404).json({ message: "Schedule not found." });
+      return res.status(404).json({ message: "Графік не знайдено." });
     }
 
     const daySchedule = schedule.availability.find((d) => d.date === date);
     if (!daySchedule) {
-      return res
-        .status(404)
-        .json({ message: `No schedule found for ${date}.` });
+      return res.status(404).json({
+        message: `Графік для дати ${date} не знайдено.`,
+      });
     }
 
     const updatedSlots = daySchedule.slots.filter(
@@ -112,7 +141,7 @@ exports.removeSlot = async (req, res) => {
     );
 
     if (updatedSlots.length === daySchedule.slots.length) {
-      return res.status(404).json({ message: "Slot not found." });
+      return res.status(404).json({ message: "Слот не знайдено." });
     }
 
     if (updatedSlots.length === 0) {
@@ -124,10 +153,10 @@ exports.removeSlot = async (req, res) => {
     }
 
     await schedule.save();
-    res.status(200).json({ message: "Slot removed successfully", schedule });
+    res.status(200).json({ message: "Слот успішно видалено", schedule });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка при видаленні слоту:", error);
+    res.status(500).json({ message: "Сталася помилка на сервері." });
   }
 };
 
@@ -155,7 +184,7 @@ exports.getDoctorSchedule = async (req, res) => {
     await schedule.save();
     res.status(200).json(schedule);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка при отриманні графіка:", error);
+    res.status(500).json({ message: "Сталася помилка на сервері." });
   }
 };
