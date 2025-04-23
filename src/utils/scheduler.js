@@ -2,6 +2,7 @@ const schedule = require("node-schedule");
 const Appointment = require("../models/Appointment");
 const { db } = require("../config/firebase");
 const { users } = require("../socket/state");
+const Chat = require("../models/Chat");
 
 const scheduledJobs = new Map();
 
@@ -42,10 +43,21 @@ function scheduleAppointmentJob(appointment, io) {
 
       console.log("🔄 Отримано оновлений appointment:", freshAppointment._id);
 
+      const chat = await Chat.findOne({
+        participants: {
+          $all: [
+            freshAppointment.doctor.toString(),
+            freshAppointment.patient.toString(),
+          ],
+        },
+      });
+
+      const chatId = chat ? chat._id.toString() : null;
+
       const payload = {
         message: "Ваш прийом починається!",
         appointmentId: freshAppointment._id,
-        chatId: null,
+        chatId,
         firestoreCallId: callRef.id,
       };
 
