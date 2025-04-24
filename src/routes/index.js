@@ -10,6 +10,7 @@ const prescriptionRoutes = require("./prescriptionRoutes");
 const callRoutes = require("./callRoutes");
 const ratingRoutes = require("./ratingRoutes");
 const aiRoutes = require("./aiRoutes");
+const adminRoutes = require("./adminRoutes");
 
 // Маршрути для аутентифікації
 router.use("/auth", authRoutes);
@@ -22,5 +23,6 @@ router.use("/prescriptions", prescriptionRoutes);
 router.use("/calls", callRoutes);
 router.use("/ratings", ratingRoutes);
 router.use("/ai", aiRoutes);
+router.use("/admin", adminRoutes);
 
 module.exports = router;

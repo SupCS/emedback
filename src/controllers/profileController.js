@@ -19,6 +19,12 @@ exports.getDoctorProfile = async (req, res) => {
       return res.status(404).json({ message: "Doctor not found." });
     }
 
+    const isAdmin = req.user?.role === "admin";
+
+    if (doctor.isBlocked && !isAdmin) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+
     // рахуємо кількість завершених прийомів
     const passedAppointmentsCount = await Appointment.countDocuments({
       doctor: doctor._id,
@@ -61,6 +67,12 @@ exports.getPatientProfile = async (req, res) => {
     const patient = await Patient.findById(id).select("-password");
     if (!patient) {
       return res.status(404).json({ message: "Patient not found." });
+    }
+
+    const isAdmin = req.user?.role === "admin";
+
+    if (patient.isBlocked && !isAdmin) {
+      return res.status(403).json({ message: "Access denied." });
     }
 
     res.status(200).json({

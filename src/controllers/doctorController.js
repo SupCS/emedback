@@ -4,7 +4,7 @@ const Doctor = require("../models/Doctor");
 exports.getFilteredDoctors = async (req, res) => {
   try {
     const { specialization, rating } = req.query;
-    let baseFilter = {};
+    let baseFilter = { isBlocked: { $ne: true } }; // виключаємо заблокованих
 
     if (specialization) {
       const specializations = specialization.split(",");

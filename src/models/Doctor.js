@@ -47,6 +47,10 @@ const doctorSchema = new mongoose.Schema({
     required: false,
   },
   avatar: { type: String, default: null },
+  isBlocked: {
+    type: Boolean,
+    default: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
