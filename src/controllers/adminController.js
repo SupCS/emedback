@@ -176,13 +176,55 @@ exports.getAllAppointments = async (req, res) => {
 // GET /admin/prescriptions
 exports.getAllPrescriptions = async (req, res) => {
   try {
-    const prescriptions = await Prescription.find()
+    const { doctor, patient, from, to } = req.query;
+
+    const filter = {};
+
+    if (doctor) {
+      filter.doctor = doctor;
+    }
+
+    if (patient) {
+      filter.patient = patient;
+    }
+
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) {
+        filter.createdAt.$gte = new Date(from);
+      }
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = end;
+      }
+    }
+
+    const prescriptions = await Prescription.find(filter)
       .populate("doctor", "name email")
       .populate("patient", "name email");
+
     res.json(prescriptions);
   } catch (error) {
     console.error("❌ Fetch prescriptions error:", error);
     res.status(500).json({ message: "Server error fetching prescriptions." });
+  }
+};
+
+exports.deletePrescription = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deleted = await Prescription.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Prescription not found." });
+    }
+
+    res.json({ message: "Prescription deleted successfully." });
+  } catch (error) {
+    console.error("❌ Error deleting prescription:", error);
+    res.status(500).json({ message: "Server error deleting prescription." });
   }
 };
 
@@ -495,45 +537,107 @@ exports.getAdminStats = async (req, res) => {
     const fromDate = from ? new Date(from) : new Date("2000-01-01");
     const toDate = to ? new Date(to) : new Date();
 
-    const [
-      totalDoctors,
-      totalPatients,
-      appointmentsCreated,
-      appointmentsPassed,
-      appointmentsCancelled,
-    ] = await Promise.all([
+    const [totalDoctors, totalPatients] = await Promise.all([
       Doctor.countDocuments(),
       Patient.countDocuments(),
-      Appointment.countDocuments({
-        createdAt: { $gte: fromDate, $lte: toDate },
-      }),
-      Appointment.countDocuments({
-        status: "passed",
-        date: {
-          $gte: fromDate.toISOString().split("T")[0],
-          $lte: toDate.toISOString().split("T")[0],
-        },
-      }),
-      Appointment.countDocuments({
-        status: "cancelled",
-        date: {
-          $gte: fromDate.toISOString().split("T")[0],
-          $lte: toDate.toISOString().split("T")[0],
-        },
-      }),
     ]);
+
+    // Щоденна статистика по appointments
+    const daily = await Appointment.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: fromDate, $lte: toDate },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            status: "$status",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.date",
+          stats: {
+            $push: {
+              k: "$_id.status",
+              v: "$count",
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: "$_id",
+          data: {
+            $arrayToObject: "$stats",
+          },
+        },
+      },
+      {
+        $sort: { date: 1 },
+      },
+    ]);
+    const dailyStats = daily.map((d) => ({
+      date: d.date,
+      Created: Object.values(d.data).reduce((sum, val) => sum + val, 0),
+      Passed: d.data.passed || 0,
+      Cancelled: d.data.cancelled || 0,
+    }));
+
+    // Загальна кількість за весь період
+    const totalCreated = dailyStats.reduce((sum, d) => sum + d.Created, 0);
+    const totalPassed = dailyStats.reduce((sum, d) => sum + d.Passed, 0);
+    const totalCancelled = dailyStats.reduce((sum, d) => sum + d.Cancelled, 0);
 
     res.json({
       totalDoctors,
       totalPatients,
-      appointmentsCreated,
-      appointmentsPassed,
-      appointmentsCancelled,
+      appointmentsCreated: totalCreated,
+      appointmentsPassed: totalPassed,
+      appointmentsCancelled: totalCancelled,
       from: fromDate.toISOString().split("T")[0],
       to: toDate.toISOString().split("T")[0],
+      daily: dailyStats,
     });
   } catch (error) {
     console.error("Error fetching admin stats:", error);
     res.status(500).json({ message: "Server error fetching statistics." });
+  }
+};
+
+exports.adminRemoveAvatar = async (req, res) => {
+  const { role, id } = req.params;
+
+  const model =
+    role === "patient" ? Patient : role === "doctor" ? Doctor : null;
+  if (!model) {
+    return res.status(400).json({ message: "Invalid role." });
+  }
+
+  try {
+    const user = await model.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (user.avatar) {
+      const fullPath = path.join(__dirname, "../", user.avatar);
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+    }
+
+    user.avatar = null;
+    await user.save();
+
+    res.json({ message: "Аватарка успішно видалена." });
+  } catch (error) {
+    console.error("❌ Error removing avatar:", error);
+    res.status(500).json({ message: "Server error removing avatar." });
   }
 };

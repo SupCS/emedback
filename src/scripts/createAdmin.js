@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
-const bcrypt = require("bcrypt");
 const Admin = require("../models/Admin");
 const path = require("path");
 
@@ -25,12 +24,10 @@ const createAdmin = async () => {
       return;
     }
 
-    const hashedPassword = await bcrypt.hash("admin123", 10);
-
     const admin = new Admin({
       name: "Super Admin",
       email: "admin@example.com",
-      password: hashedPassword,
+      password: "admin123",
     });
 
     await admin.save();
