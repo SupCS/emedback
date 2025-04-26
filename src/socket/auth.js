@@ -22,7 +22,7 @@ module.exports = (socket, next) => {
     }
     users.get(socket.user.id).add(socket.id);
 
-    console.log(`🟢 User authenticated: ${socket.user.id}`);
+    console.log(`User authenticated: ${socket.user.id}`);
     next();
   });
 };

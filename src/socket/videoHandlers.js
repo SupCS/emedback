@@ -50,7 +50,7 @@ module.exports = (socket, io) => {
   });
 
   socket.on("disconnect", () => {
-    console.log(`🔴 User ${socket.user?.id} disconnected`);
+    console.log(`User ${socket.user?.id} disconnected`);
     if (socket.user?.id) users.delete(socket.user.id);
 
     for (const [callId, sockets] of roomSockets.entries()) {

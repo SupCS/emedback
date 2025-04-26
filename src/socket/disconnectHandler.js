@@ -2,7 +2,7 @@ const { users, roomSockets, socketToRoom } = require("./state");
 
 module.exports = (socket, io) => {
   socket.on("disconnect", () => {
-    console.log(`🔴 User ${socket.user.id} disconnected`);
+    console.log(`User ${socket.user.id} disconnected`);
 
     const userSockets = users.get(socket.user.id);
     if (userSockets) {

@@ -2,7 +2,10 @@ const Appointment = require("../models/Appointment");
 const Doctor = require("../models/Doctor");
 const DoctorSchedule = require("../models/DoctorSchedule");
 const Chat = require("../models/Chat");
-const { scheduleAppointmentJob } = require("../utils/scheduler");
+const {
+  scheduleAppointmentStartJob,
+  scheduleAppointmentEndJob,
+} = require("../utils/scheduler");
 const { db } = require("../config/firebase");
 
 // Створення нового запису на прийом
@@ -97,6 +100,7 @@ exports.createAppointment = async (req, res) => {
       });
       await chat.save();
     }
+    scheduleAppointmentEndJob(newAppointment);
 
     res.status(201).json({
       message: "Запис створено успішно.",
@@ -139,7 +143,8 @@ exports.updateAppointmentStatus = async (req, res) => {
 
     if (status === "confirmed") {
       const io = req.app.get("io");
-      scheduleAppointmentJob(appointment, io);
+      scheduleAppointmentStartJob(appointment, io);
+      scheduleAppointmentEndJob(appointment);
     }
 
     res.status(200).json({ message: `Статус запису оновлено на '${status}'.` });

@@ -18,7 +18,7 @@ module.exports = {
     io.use(authMiddleware);
 
     io.on("connection", (socket) => {
-      console.log(`🟢 Connected: ${socket.user.id}`);
+      console.log(`Connected: ${socket.user.id}`);
 
       chatHandlers(socket, io);
       videoHandlers(socket, io);
