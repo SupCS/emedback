@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const DoctorSchedule = require("../models/DoctorSchedule");
 const Appointment = require("../models/Appointment");
 
@@ -42,7 +43,7 @@ const isValidSlotDuration = (startTime, endTime) => {
 // Перевірка, що слот не створюється в минулому
 const isFutureDate = (date, startTime) => {
   const now = new Date();
-  const slotDateTime = new Date(date + "T" + startTime + ":00");
+  const slotDateTime = new Date(`${date}T${startTime}:00`);
   return slotDateTime > now;
 };
 
@@ -55,33 +56,32 @@ exports.addOrUpdateSlot = async (req, res) => {
     return res.status(400).json({ message: "Невірний формат даних." });
   }
 
-  for (let slot of slots) {
-    if (!isValidSlotDuration(slot.startTime, slot.endTime)) {
-      return res.status(400).json({
-        message: `Слот ${slot.startTime} - ${slot.endTime} повинен бути тривалістю від 10 хвилин до 2 годин.`,
-      });
-    }
-
-    if (!isFutureDate(date, slot.startTime)) {
-      return res.status(400).json({
-        message: `Слот ${slot.startTime} на ${date} знаходиться в минулому і не може бути створений.`,
-      });
-    }
-
-    const overlapsWithAppointments = await isOverlappingWithAppointments(
-      doctorId,
-      date,
-      slot
-    );
-
-    if (overlapsWithAppointments) {
-      return res.status(400).json({
-        message: `Слот ${slot.startTime} - ${slot.endTime} перетинається з існуючим записом на прийом на ${date}.`,
-      });
-    }
-  }
-
   try {
+    for (let slot of slots) {
+      if (!isValidSlotDuration(slot.startTime, slot.endTime)) {
+        return res.status(400).json({
+          message: `Слот ${slot.startTime} - ${slot.endTime} повинен бути тривалістю від 10 хвилин до 2 годин.`,
+        });
+      }
+
+      if (!isFutureDate(date, slot.startTime)) {
+        return res.status(400).json({
+          message: `Слот ${slot.startTime} на ${date} знаходиться в минулому і не може бути створений.`,
+        });
+      }
+
+      const overlaps = await isOverlappingWithAppointments(
+        doctorId,
+        date,
+        slot
+      );
+      if (overlaps) {
+        return res.status(400).json({
+          message: `Слот ${slot.startTime} - ${slot.endTime} перетинається з існуючим записом на ${date}.`,
+        });
+      }
+    }
+
     let schedule = await DoctorSchedule.findOne({ doctorId });
 
     if (!schedule) {
@@ -107,7 +107,7 @@ exports.addOrUpdateSlot = async (req, res) => {
     }
 
     await schedule.save();
-    res.status(201).json({ message: "Графік успішно оновлено", schedule });
+    res.status(201).json({ message: "Графік успішно оновлено.", schedule });
   } catch (error) {
     console.error("Помилка при оновленні графіка:", error);
     res.status(500).json({ message: "Сталася помилка на сервері." });
@@ -124,16 +124,16 @@ exports.removeSlot = async (req, res) => {
   }
 
   try {
-    let schedule = await DoctorSchedule.findOne({ doctorId });
+    const schedule = await DoctorSchedule.findOne({ doctorId });
     if (!schedule) {
       return res.status(404).json({ message: "Графік не знайдено." });
     }
 
     const daySchedule = schedule.availability.find((d) => d.date === date);
     if (!daySchedule) {
-      return res.status(404).json({
-        message: `Графік для дати ${date} не знайдено.`,
-      });
+      return res
+        .status(404)
+        .json({ message: `Графік для дати ${date} не знайдено.` });
     }
 
     const updatedSlots = daySchedule.slots.filter(
@@ -153,7 +153,7 @@ exports.removeSlot = async (req, res) => {
     }
 
     await schedule.save();
-    res.status(200).json({ message: "Слот успішно видалено", schedule });
+    res.status(200).json({ message: "Слот успішно видалено.", schedule });
   } catch (error) {
     console.error("Помилка при видаленні слоту:", error);
     res.status(500).json({ message: "Сталася помилка на сервері." });
@@ -164,8 +164,12 @@ exports.removeSlot = async (req, res) => {
 exports.getDoctorSchedule = async (req, res) => {
   const { doctorId } = req.params;
 
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return res.status(400).json({ message: "Невалідний ID лікаря." });
+  }
+
   try {
-    let schedule = await DoctorSchedule.findOne({ doctorId });
+    const schedule = await DoctorSchedule.findOne({ doctorId });
 
     if (!schedule) {
       return res.status(200).json({ doctorId, availability: [] });
@@ -176,7 +180,7 @@ exports.getDoctorSchedule = async (req, res) => {
       .map((day) => ({
         date: day.date,
         slots: day.slots.filter(
-          (slot) => new Date(day.date + "T" + slot.endTime + ":00") > now
+          (slot) => new Date(`${day.date}T${slot.endTime}:00`) > now
         ),
       }))
       .filter((day) => day.slots.length > 0);
@@ -184,7 +188,7 @@ exports.getDoctorSchedule = async (req, res) => {
     await schedule.save();
     res.status(200).json(schedule);
   } catch (error) {
-    console.error("Помилка при отриманні графіка:", error);
+    console.error("Помилка при отриманні графіка лікаря:", error);
     res.status(500).json({ message: "Сталася помилка на сервері." });
   }
 };

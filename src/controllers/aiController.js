@@ -1,24 +1,24 @@
 const openai = require("../utils/openai");
 const AIAssistantLog = require("../models/AIAssistantLog");
 
+// Обробка запиту до AI-помічника
 exports.askAI = async (req, res) => {
   const { message } = req.body;
 
-  // Перевірка на валідність запиту
   if (!message || typeof message !== "string") {
-    return res.status(400).json({ message: "Некоректне повідомлення" });
+    return res.status(400).json({ message: "Некоректне повідомлення." });
   }
 
   const trimmed = message.trim();
 
   if (trimmed.length < 2) {
-    return res.status(400).json({ message: "Повідомлення занадто коротке" });
+    return res.status(400).json({ message: "Повідомлення занадто коротке." });
   }
 
   if (trimmed.length > 1000) {
-    return res
-      .status(400)
-      .json({ message: "Повідомлення занадто довге (макс 1000 символів)" });
+    return res.status(400).json({
+      message: "Повідомлення занадто довге (максимум 1000 символів).",
+    });
   }
 
   try {
@@ -26,18 +26,18 @@ exports.askAI = async (req, res) => {
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const count = await AIAssistantLog.countDocuments({
+    const requestCount = await AIAssistantLog.countDocuments({
       userId: req.user.id,
       createdAt: { $gte: yesterday },
     });
 
-    if (count >= 100) {
+    if (requestCount >= 100) {
       return res.status(429).json({
-        message: "Досягнуто ліміту запитів за добу (100). Спробуйте завтра.",
+        message:
+          "Досягнуто ліміту запитів за добу (100). Будь ласка, спробуйте завтра.",
       });
     }
 
-    // Запит до OpenAI
     const chatCompletion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -58,9 +58,14 @@ exports.askAI = async (req, res) => {
       ],
     });
 
-    const aiResponse = chatCompletion.choices[0].message.content;
+    const aiResponse = chatCompletion.choices?.[0]?.message?.content;
 
-    // Логування запиту
+    if (!aiResponse) {
+      return res.status(500).json({
+        message: "Відповідь від AI була порожньою. Спробуйте ще раз.",
+      });
+    }
+
     await AIAssistantLog.create({
       userId: req.user.id,
       userRole: req.user.role === "doctor" ? "Doctor" : "Patient",
@@ -70,9 +75,11 @@ exports.askAI = async (req, res) => {
       ],
     });
 
-    res.json({ response: aiResponse });
+    res.status(200).json({ response: aiResponse });
   } catch (error) {
-    console.error("❌ Помилка OpenAI:", error);
-    res.status(500).json({ message: "Помилка при зверненні до AI" });
+    console.error("Помилка OpenAI:", error?.response?.data || error.message);
+    res.status(500).json({
+      message: "Сталася помилка при зверненні до AI. Спробуйте пізніше.",
+    });
   }
 };

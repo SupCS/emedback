@@ -16,14 +16,13 @@ exports.loginAdmin = async (req, res) => {
 
   try {
     const admin = await Admin.findOne({ email }).select("+password");
-
     if (!admin) {
-      return res.status(401).json({ message: "Invalid email or password." });
+      return res.status(401).json({ message: "Невірний email або пароль." });
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password." });
+      return res.status(401).json({ message: "Невірний email або пароль." });
     }
 
     const token = jwt.sign(
@@ -33,7 +32,7 @@ exports.loginAdmin = async (req, res) => {
     );
 
     res.status(200).json({
-      message: "Admin login successful.",
+      message: "Успішний вхід в адмінку.",
       token,
       user: {
         id: admin._id,
@@ -42,8 +41,8 @@ exports.loginAdmin = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Admin login error:", error);
-    res.status(500).json({ message: "Server error during admin login." });
+    console.error("Помилка входу адміністратора:", error);
+    res.status(500).json({ message: "Помилка сервера під час входу." });
   }
 };
 
@@ -52,7 +51,7 @@ exports.getAdminProfile = async (req, res) => {
   try {
     const admin = await Admin.findById(req.user.id);
     if (!admin) {
-      return res.status(404).json({ message: "Admin not found." });
+      return res.status(404).json({ message: "Адміністратора не знайдено." });
     }
 
     res.json({
@@ -62,8 +61,8 @@ exports.getAdminProfile = async (req, res) => {
       createdAt: admin.createdAt,
     });
   } catch (error) {
-    console.error("❌ Fetch admin profile error:", error);
-    res.status(500).json({ message: "Server error fetching profile." });
+    console.error("Помилка отримання профілю адміністратора:", error);
+    res.status(500).json({ message: "Помилка сервера при отриманні профілю." });
   }
 };
 
@@ -113,8 +112,8 @@ exports.getAllDoctors = async (req, res) => {
     const doctors = await Doctor.find(filter).select("-password");
     res.json(doctors);
   } catch (error) {
-    console.error("❌ Fetch doctors error:", error);
-    res.status(500).json({ message: "Server error fetching doctors." });
+    console.error("Помилка отримання лікарів:", error);
+    res.status(500).json({ message: "Помилка сервера при отриманні лікарів." });
   }
 };
 
@@ -155,8 +154,10 @@ exports.getAllPatients = async (req, res) => {
     const patients = await Patient.find(filter).select("-password");
     res.json(patients);
   } catch (error) {
-    console.error("❌ Fetch patients error:", error);
-    res.status(500).json({ message: "Server error fetching patients." });
+    console.error("Помилка отримання пацієнтів:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при отриманні пацієнтів." });
   }
 };
 
@@ -166,10 +167,11 @@ exports.getAllAppointments = async (req, res) => {
     const appointments = await Appointment.find()
       .populate("doctor", "name email")
       .populate("patient", "name email");
-    res.json(appointments);
+
+    res.status(200).json(appointments);
   } catch (error) {
-    console.error("❌ Fetch appointments error:", error);
-    res.status(500).json({ message: "Server error fetching appointments." });
+    console.error("Помилка отримання списку записів:", error);
+    res.status(500).json({ message: "Помилка сервера при отриманні записів." });
   }
 };
 
@@ -181,10 +183,16 @@ exports.getAllPrescriptions = async (req, res) => {
     const filter = {};
 
     if (doctor) {
+      if (!mongoose.Types.ObjectId.isValid(doctor)) {
+        return res.status(400).json({ message: "Невалідний ID лікаря." });
+      }
       filter.doctor = doctor;
     }
 
     if (patient) {
+      if (!mongoose.Types.ObjectId.isValid(patient)) {
+        return res.status(400).json({ message: "Невалідний ID пацієнта." });
+      }
       filter.patient = patient;
     }
 
@@ -204,27 +212,36 @@ exports.getAllPrescriptions = async (req, res) => {
       .populate("doctor", "name email")
       .populate("patient", "name email");
 
-    res.json(prescriptions);
+    res.status(200).json(prescriptions);
   } catch (error) {
-    console.error("❌ Fetch prescriptions error:", error);
-    res.status(500).json({ message: "Server error fetching prescriptions." });
+    console.error("Помилка отримання призначень:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при отриманні призначень." });
   }
 };
 
+// DELETE /admin/prescriptions/:id
 exports.deletePrescription = async (req, res) => {
   const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Невалідний ID призначення." });
+  }
 
   try {
     const deleted = await Prescription.findByIdAndDelete(id);
 
     if (!deleted) {
-      return res.status(404).json({ message: "Prescription not found." });
+      return res.status(404).json({ message: "Призначення не знайдено." });
     }
 
-    res.json({ message: "Prescription deleted successfully." });
+    res.status(200).json({ message: "Призначення успішно видалено." });
   } catch (error) {
-    console.error("❌ Error deleting prescription:", error);
-    res.status(500).json({ message: "Server error deleting prescription." });
+    console.error("Помилка при видаленні призначення:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при видаленні призначення." });
   }
 };
 
@@ -236,7 +253,9 @@ exports.addDoctor = async (req, res) => {
   try {
     const existingDoctor = await Doctor.findOne({ email });
     if (existingDoctor) {
-      return res.status(400).json({ message: "Email already exists." });
+      return res
+        .status(400)
+        .json({ message: "Електронна адреса вже використовується." });
     }
 
     const hashedPassword = await bcrypt.hash(password || "password123", 10);
@@ -253,12 +272,13 @@ exports.addDoctor = async (req, res) => {
     });
 
     await newDoctor.save();
+
     res
       .status(201)
-      .json({ message: "Doctor created successfully.", doctor: newDoctor });
+      .json({ message: "Лікаря успішно створено.", doctor: newDoctor });
   } catch (error) {
-    console.error("❌ Error creating doctor:", error);
-    res.status(500).json({ message: "Server error creating doctor." });
+    console.error("Помилка при створенні лікаря:", error);
+    res.status(500).json({ message: "Помилка сервера при створенні лікаря." });
   }
 };
 
@@ -266,28 +286,38 @@ exports.addDoctor = async (req, res) => {
 exports.deleteDoctor = async (req, res) => {
   const doctorId = req.params.id;
 
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return res.status(400).json({ message: "Невалідний ID лікаря." });
+  }
+
   try {
     const doctor = await Doctor.findByIdAndDelete(doctorId);
     if (!doctor) {
-      return res.status(404).json({ message: "Doctor not found." });
+      return res.status(404).json({ message: "Лікаря не знайдено." });
     }
 
-    // 🔻 Видаляємо всі пов’язані графіки
+    // Видаляємо графік лікаря
     await DoctorSchedule.deleteOne({ doctorId });
 
-    // 🔻 Видаляємо всі пов'язані апоінтменти
+    // Видаляємо всі записи лікаря
     await Appointment.deleteMany({ doctor: doctorId });
 
-    res.json({ message: "Doctor and related data deleted successfully." });
+    res
+      .status(200)
+      .json({ message: "Лікаря та пов'язані дані успішно видалено." });
   } catch (error) {
-    console.error("❌ Error deleting doctor and related data:", error);
-    res.status(500).json({ message: "Server error deleting doctor." });
+    console.error("Помилка при видаленні лікаря:", error);
+    res.status(500).json({ message: "Помилка сервера при видаленні лікаря." });
   }
 };
 
 // PATCH /admin/doctors/:id/block
 exports.blockDoctor = async (req, res) => {
   const doctorId = req.params.id;
+
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return res.status(400).json({ message: "Невалідний ID лікаря." });
+  }
 
   try {
     const doctor = await Doctor.findByIdAndUpdate(
@@ -297,14 +327,14 @@ exports.blockDoctor = async (req, res) => {
     );
 
     if (!doctor) {
-      return res.status(404).json({ message: "Doctor not found." });
+      return res.status(404).json({ message: "Лікаря не знайдено." });
     }
 
     const now = new Date();
     const today = now.toISOString().split("T")[0];
     const currentTime = now.toTimeString().slice(0, 5);
 
-    // Очистка майбутніх слотів
+    // Очищаємо майбутні слоти лікаря
     const schedule = await DoctorSchedule.findOne({ doctorId });
     if (schedule) {
       schedule.availability = schedule.availability
@@ -321,7 +351,7 @@ exports.blockDoctor = async (req, res) => {
       await schedule.save();
     }
 
-    // Скасування майбутніх активних апоінтментів
+    // Скасовуємо всі майбутні записи
     await Appointment.updateMany(
       {
         doctor: doctorId,
@@ -334,38 +364,51 @@ exports.blockDoctor = async (req, res) => {
       { $set: { status: "cancelled" } }
     );
 
-    res.json({
-      message: "Doctor blocked, slots cleared, and appointments cancelled.",
+    res.status(200).json({
+      message: "Лікаря заблоковано, слоти очищено, записи скасовано.",
       doctor,
     });
   } catch (error) {
-    console.error("Error blocking doctor:", error);
-    res.status(500).json({ message: "Server error blocking doctor." });
+    console.error("Помилка при блокуванні лікаря:", error);
+    res.status(500).json({ message: "Помилка сервера при блокуванні лікаря." });
   }
 };
 
 // PATCH /admin/doctors/:id/unblock
 exports.unblockDoctor = async (req, res) => {
   const doctorId = req.params.id;
+
+  if (!mongoose.Types.ObjectId.isValid(doctorId)) {
+    return res.status(400).json({ message: "Невалідний ID лікаря." });
+  }
+
   try {
     const doctor = await Doctor.findByIdAndUpdate(
       doctorId,
       { isBlocked: false },
       { new: true }
     );
+
     if (!doctor) {
-      return res.status(404).json({ message: "Doctor not found." });
+      return res.status(404).json({ message: "Лікаря не знайдено." });
     }
-    res.json({ message: "Doctor unblocked successfully.", doctor });
+
+    res.status(200).json({ message: "Лікаря успішно розблоковано.", doctor });
   } catch (error) {
-    console.error("Error unblocking doctor:", error);
-    res.status(500).json({ message: "Server error unblocking doctor." });
+    console.error("Помилка при розблокуванні лікаря:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при розблокуванні лікаря." });
   }
 };
 
 // PATCH /admin/patients/:id/block
 exports.blockPatient = async (req, res) => {
   const patientId = req.params.id;
+
+  if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    return res.status(400).json({ message: "Невалідний ID пацієнта." });
+  }
 
   try {
     const patient = await Patient.findByIdAndUpdate(
@@ -375,7 +418,7 @@ exports.blockPatient = async (req, res) => {
     );
 
     if (!patient) {
-      return res.status(404).json({ message: "Patient not found." });
+      return res.status(404).json({ message: "Пацієнта не знайдено." });
     }
 
     const now = new Date();
@@ -394,31 +437,45 @@ exports.blockPatient = async (req, res) => {
       { $set: { status: "cancelled" } }
     );
 
-    res.json({
-      message: "Patient blocked and appointments cancelled.",
+    res.status(200).json({
+      message: "Пацієнта заблоковано та записи скасовано.",
       patient,
     });
   } catch (error) {
-    console.error("Error blocking patient:", error);
-    res.status(500).json({ message: "Server error blocking patient." });
+    console.error("Помилка при блокуванні пацієнта:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при блокуванні пацієнта." });
   }
 };
+
 // PATCH /admin/patients/:id/unblock
 exports.unblockPatient = async (req, res) => {
   const patientId = req.params.id;
+
+  if (!mongoose.Types.ObjectId.isValid(patientId)) {
+    return res.status(400).json({ message: "Невалідний ID пацієнта." });
+  }
+
   try {
     const patient = await Patient.findByIdAndUpdate(
       patientId,
       { isBlocked: false },
       { new: true }
     );
+
     if (!patient) {
-      return res.status(404).json({ message: "Patient not found." });
+      return res.status(404).json({ message: "Пацієнта не знайдено." });
     }
-    res.json({ message: "Patient unblocked successfully.", patient });
+
+    res
+      .status(200)
+      .json({ message: "Пацієнта успішно розблоковано.", patient });
   } catch (error) {
-    console.error("Error unblocking patient:", error);
-    res.status(500).json({ message: "Server error unblocking patient." });
+    console.error("Помилка при розблокуванні пацієнта:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при розблокуванні пацієнта." });
   }
 };
 
@@ -427,13 +484,16 @@ exports.adminUpdateDoctor = async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Невалідний ID лікаря." });
+  }
+
   try {
     const doctor = await Doctor.findById(id);
     if (!doctor) {
-      return res.status(404).json({ message: "Doctor not found." });
+      return res.status(404).json({ message: "Лікаря не знайдено." });
     }
 
-    // Поля, які дозволено оновлювати
     const allowedFields = [
       "name",
       "email",
@@ -454,10 +514,14 @@ exports.adminUpdateDoctor = async (req, res) => {
     });
 
     await doctor.save();
-    res.json({ message: "Doctor updated successfully.", doctor });
+    res
+      .status(200)
+      .json({ message: "Профіль лікаря оновлено успішно.", doctor });
   } catch (error) {
-    console.error("Error updating doctor:", error);
-    res.status(500).json({ message: "Server error updating doctor." });
+    console.error("Помилка при оновленні профілю лікаря:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при оновленні профілю лікаря." });
   }
 };
 
@@ -466,13 +530,16 @@ exports.adminUpdatePatient = async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Невалідний ID пацієнта." });
+  }
+
   try {
     const patient = await Patient.findById(id);
     if (!patient) {
-      return res.status(404).json({ message: "Patient not found." });
+      return res.status(404).json({ message: "Пацієнта не знайдено." });
     }
 
-    // Поля, які дозволено оновлювати
     const allowedFields = [
       "name",
       "email",
@@ -495,10 +562,14 @@ exports.adminUpdatePatient = async (req, res) => {
     });
 
     await patient.save();
-    res.json({ message: "Patient updated successfully.", patient });
+    res
+      .status(200)
+      .json({ message: "Профіль пацієнта оновлено успішно.", patient });
   } catch (error) {
-    console.error("Error updating patient:", error);
-    res.status(500).json({ message: "Server error updating patient." });
+    console.error("Помилка при оновленні профілю пацієнта:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при оновленні профілю пацієнта." });
   }
 };
 
@@ -506,26 +577,32 @@ exports.adminUpdatePatient = async (req, res) => {
 exports.adminCancelAppointment = async (req, res) => {
   const { id } = req.params;
 
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Невалідний ID апоінтменту." });
+  }
+
   try {
     const appointment = await Appointment.findById(id);
 
     if (!appointment) {
-      return res.status(404).json({ message: "Appointment not found." });
+      return res.status(404).json({ message: "Апоінтмент не знайдено." });
     }
 
     if (appointment.status === "cancelled") {
-      return res
-        .status(400)
-        .json({ message: "Appointment is already cancelled." });
+      return res.status(400).json({ message: "Апоінтмент вже скасовано." });
     }
 
     appointment.status = "cancelled";
     await appointment.save();
 
-    res.json({ message: "Appointment cancelled successfully.", appointment });
+    res
+      .status(200)
+      .json({ message: "Апоінтмент успішно скасовано.", appointment });
   } catch (error) {
-    console.error("Error cancelling appointment:", error);
-    res.status(500).json({ message: "Server error cancelling appointment." });
+    console.error("Помилка при скасуванні апоінтменту:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при скасуванні апоінтменту." });
   }
 };
 
@@ -542,7 +619,6 @@ exports.getAdminStats = async (req, res) => {
       Patient.countDocuments(),
     ]);
 
-    // Щоденна статистика по appointments
     const daily = await Appointment.aggregate([
       {
         $match: {
@@ -573,15 +649,12 @@ exports.getAdminStats = async (req, res) => {
         $project: {
           _id: 0,
           date: "$_id",
-          data: {
-            $arrayToObject: "$stats",
-          },
+          data: { $arrayToObject: "$stats" },
         },
       },
-      {
-        $sort: { date: 1 },
-      },
+      { $sort: { date: 1 } },
     ]);
+
     const dailyStats = daily.map((d) => ({
       date: d.date,
       Created: Object.values(d.data).reduce((sum, val) => sum + val, 0),
@@ -589,12 +662,11 @@ exports.getAdminStats = async (req, res) => {
       Cancelled: d.data.cancelled || 0,
     }));
 
-    // Загальна кількість за весь період
     const totalCreated = dailyStats.reduce((sum, d) => sum + d.Created, 0);
     const totalPassed = dailyStats.reduce((sum, d) => sum + d.Passed, 0);
     const totalCancelled = dailyStats.reduce((sum, d) => sum + d.Cancelled, 0);
 
-    res.json({
+    res.status(200).json({
       totalDoctors,
       totalPatients,
       appointmentsCreated: totalCreated,
@@ -605,24 +677,31 @@ exports.getAdminStats = async (req, res) => {
       daily: dailyStats,
     });
   } catch (error) {
-    console.error("Error fetching admin stats:", error);
-    res.status(500).json({ message: "Server error fetching statistics." });
+    console.error("Помилка при отриманні статистики:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при отриманні статистики." });
   }
 };
 
+// PATCH /admin/remove-avatar
 exports.adminRemoveAvatar = async (req, res) => {
   const { role, id } = req.params;
 
-  const model =
-    role === "patient" ? Patient : role === "doctor" ? Doctor : null;
-  if (!model) {
-    return res.status(400).json({ message: "Invalid role." });
+  if (!["doctor", "patient"].includes(role)) {
+    return res.status(400).json({ message: "Невірна роль користувача." });
   }
 
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Невалідний ID користувача." });
+  }
+
+  const Model = role === "doctor" ? Doctor : Patient;
+
   try {
-    const user = await model.findById(id);
+    const user = await Model.findById(id);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ message: "Користувача не знайдено." });
     }
 
     if (user.avatar) {
@@ -635,9 +714,11 @@ exports.adminRemoveAvatar = async (req, res) => {
     user.avatar = null;
     await user.save();
 
-    res.json({ message: "Аватарка успішно видалена." });
+    res.status(200).json({ message: "Аватарку успішно видалено." });
   } catch (error) {
-    console.error("❌ Error removing avatar:", error);
-    res.status(500).json({ message: "Server error removing avatar." });
+    console.error("Помилка при видаленні аватарки:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при видаленні аватарки." });
   }
 };

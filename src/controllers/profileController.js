@@ -11,21 +11,20 @@ exports.getDoctorProfile = async (req, res) => {
 
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid doctor ID." });
+      return res.status(400).json({ message: "Невалідний ID лікаря." });
     }
 
     const doctor = await Doctor.findById(id).select("-password");
     if (!doctor) {
-      return res.status(404).json({ message: "Doctor not found." });
+      return res.status(404).json({ message: "Лікаря не знайдено." });
     }
 
     const isAdmin = req.user?.role === "admin";
 
     if (doctor.isBlocked && !isAdmin) {
-      return res.status(403).json({ message: "Access denied." });
+      return res.status(403).json({ message: "Доступ заборонено." });
     }
 
-    // рахуємо кількість завершених прийомів
     const passedAppointmentsCount = await Appointment.countDocuments({
       doctor: doctor._id,
       status: "passed",
@@ -46,8 +45,8 @@ exports.getDoctorProfile = async (req, res) => {
       passedAppointmentsCount,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка отримання профілю лікаря:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
 
@@ -57,22 +56,22 @@ exports.getPatientProfile = async (req, res) => {
 
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid patient ID." });
+      return res.status(400).json({ message: "Невалідний ID пацієнта." });
     }
 
     if (req.user.role === "patient" && req.user.id !== id) {
-      return res.status(403).json({ message: "Access denied." });
+      return res.status(403).json({ message: "Доступ заборонено." });
     }
 
     const patient = await Patient.findById(id).select("-password");
     if (!patient) {
-      return res.status(404).json({ message: "Patient not found." });
+      return res.status(404).json({ message: "Пацієнта не знайдено." });
     }
 
     const isAdmin = req.user?.role === "admin";
 
     if (patient.isBlocked && !isAdmin) {
-      return res.status(403).json({ message: "Access denied." });
+      return res.status(403).json({ message: "Доступ заборонено." });
     }
 
     res.status(200).json({
@@ -83,21 +82,17 @@ exports.getPatientProfile = async (req, res) => {
       avatar: patient.avatar || null,
       medicalRecords: patient.medicalRecords,
       prescriptions: patient.prescriptions || [],
-
-      // Біо-дані
       birthDate: patient.birthDate,
       height: patient.height,
       weight: patient.weight,
       bloodType: patient.bloodType,
       gender: patient.gender,
-
-      // Медичні дані
       allergies: patient.allergies,
       chronicDiseases: patient.chronicDiseases,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка отримання профілю пацієнта:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
 
@@ -138,16 +133,18 @@ exports.uploadAvatar = async (req, res) => {
     user.avatar = relativePath;
     await user.save();
 
-    res.json({ message: "Аватарка оновлена!", avatar: relativePath });
+    res
+      .status(200)
+      .json({ message: "Аватарку оновлено.", avatar: relativePath });
   } catch (error) {
-    console.error(error);
+    console.error("Помилка при завантаженні аватарки:", error);
     if (req.file) {
       fs.unlink(req.file.path, (err) => {
         if (err) console.error("Помилка видалення нового файлу:", err);
       });
       deleteEmptyFolders(path.dirname(req.file.path));
     }
-    res.status(500).json({ message: "Помилка завантаження файлу." });
+    res.status(500).json({ message: "Помилка при завантаженні файлу." });
   }
 };
 
@@ -197,7 +194,10 @@ exports.updateProfile = async (req, res) => {
         ) {
           return res
             .status(400)
-            .json({ message: "Ім'я має містити щонайменше 4 літери" });
+            .json({
+              message:
+                "Ім'я має містити щонайменше 4 символи та бути валідним.",
+            });
         }
         user.name = trimmed;
       }
@@ -226,7 +226,7 @@ exports.updateProfile = async (req, res) => {
         if (isNaN(h) || h < 30 || h > 300) {
           return res
             .status(400)
-            .json({ message: "Зріст має бути в межах 30–300 см." });
+            .json({ message: "Зріст має бути між 30 і 300 см." });
         }
         user.height = h;
       }
@@ -236,7 +236,7 @@ exports.updateProfile = async (req, res) => {
         if (isNaN(w) || w < 2 || w > 500) {
           return res
             .status(400)
-            .json({ message: "Вага має бути в межах 2–500 кг." });
+            .json({ message: "Вага має бути між 2 і 500 кг." });
         }
         user.weight = w;
       }
@@ -290,9 +290,7 @@ exports.updateProfile = async (req, res) => {
     if (role === "doctor") {
       if (bio !== undefined) {
         if (typeof bio !== "string") {
-          return res
-            .status(400)
-            .json({ message: "Невалідне біо. Має бути рядком." });
+          return res.status(400).json({ message: "Біо має бути рядком." });
         }
         user.bio = bio.trim();
       }
@@ -308,14 +306,14 @@ exports.updateProfile = async (req, res) => {
     }
 
     await user.save();
-    res.json({ message: "Профіль оновлено успішно." });
+    res.status(200).json({ message: "Профіль оновлено успішно." });
   } catch (error) {
     console.error("Помилка при оновленні профілю:", error);
     res.status(500).json({ message: "Помилка сервера при оновленні профілю." });
   }
 };
 
-// Функція для видалення порожніх папок після очищення аватарів
+// Функція для видалення порожніх папок
 const deleteEmptyFolders = (folderPath) => {
   try {
     if (fs.existsSync(folderPath)) {

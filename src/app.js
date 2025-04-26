@@ -11,8 +11,7 @@ const path = require("path");
 const cron = require("node-cron");
 const updatePastAppointments = require("./scripts/updateAppointmentStatus");
 const { rescheduleAllAppointments } = require("./utils/scheduler");
-const { generalLimiter } = require("../middleware/rateLimiter");
-
+const { generalLimiter } = require("./middleware/rateLimiter");
 connectDB();
 
 const app = express();

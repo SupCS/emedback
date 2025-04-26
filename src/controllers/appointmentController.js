@@ -5,34 +5,44 @@ const Chat = require("../models/Chat");
 const { scheduleAppointmentJob } = require("../utils/scheduler");
 const { db } = require("../config/firebase");
 
+// Створення нового запису на прийом
 exports.createAppointment = async (req, res) => {
   const { doctorId, date, startTime, endTime } = req.body;
   const patientId = req.user.id;
 
+  if (!doctorId || !date || !startTime || !endTime) {
+    return res.status(400).json({ message: "Всі поля обов'язкові." });
+  }
+
   try {
     const doctor = await Doctor.findById(doctorId);
-    if (!doctor) return res.status(404).json({ message: "Doctor not found." });
+    if (!doctor) {
+      return res.status(404).json({ message: "Лікаря не знайдено." });
+    }
 
     const doctorSchedule = await DoctorSchedule.findOne({
       doctorId,
       "availability.date": date,
     });
-    if (!doctorSchedule)
+
+    if (!doctorSchedule) {
       return res
         .status(400)
-        .json({ message: "No available slots on this date." });
+        .json({ message: "На цю дату немає вільних слотів." });
+    }
 
     const dayAvailability = doctorSchedule.availability.find(
       (day) => day.date === date
     );
-    const isSlotAvailable = dayAvailability.slots.some(
+    const isSlotAvailable = dayAvailability?.slots.some(
       (slot) => slot.startTime === startTime && slot.endTime === endTime
     );
 
-    if (!isSlotAvailable)
+    if (!isSlotAvailable) {
       return res
         .status(400)
-        .json({ message: "Selected time slot is not available." });
+        .json({ message: "Обраний часовий слот недоступний." });
+    }
 
     const existingAppointment = await Appointment.findOne({
       doctor: doctorId,
@@ -42,8 +52,11 @@ exports.createAppointment = async (req, res) => {
       status: { $in: ["pending", "confirmed"] },
     });
 
-    if (existingAppointment)
-      return res.status(400).json({ message: "Time slot already booked." });
+    if (existingAppointment) {
+      return res
+        .status(400)
+        .json({ message: "Цей часовий слот вже зайнятий." });
+    }
 
     const newAppointment = new Appointment({
       doctor: doctorId,
@@ -53,27 +66,30 @@ exports.createAppointment = async (req, res) => {
       endTime,
       status: "pending",
     });
+
     await newAppointment.save();
 
     doctorSchedule.availability = doctorSchedule.availability
       .map((day) => {
         if (day.date === date) {
-          const filteredSlots = day.slots.filter(
+          const updatedSlots = day.slots.filter(
             (slot) =>
               !(slot.startTime === startTime && slot.endTime === endTime)
           );
-          return filteredSlots.length === 0
-            ? null
-            : { date: day.date, slots: filteredSlots };
+          return updatedSlots.length > 0
+            ? { date: day.date, slots: updatedSlots }
+            : null;
         }
         return day;
       })
-      .filter((day) => day !== null);
+      .filter(Boolean);
+
     await doctorSchedule.save();
 
     let chat = await Chat.findOne({
       participants: { $all: [doctorId, patientId] },
     });
+
     if (!chat) {
       chat = new Chat({
         participants: [doctorId, patientId],
@@ -83,37 +99,39 @@ exports.createAppointment = async (req, res) => {
     }
 
     res.status(201).json({
-      message: "Appointment created successfully.",
+      message: "Запис створено успішно.",
       appointment: newAppointment,
       chatId: chat._id,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка створення запису:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
 
+// Оновлення статусу запису (підтвердження або скасування)
 exports.updateAppointmentStatus = async (req, res) => {
   const { appointmentId } = req.params;
   const { status } = req.body;
 
   if (!["confirmed", "cancelled"].includes(status)) {
-    return res.status(400).json({ message: "Invalid status value." });
+    return res.status(400).json({ message: "Недопустиме значення статусу." });
   }
 
   try {
     const appointment = await Appointment.findById(appointmentId);
-    if (!appointment)
-      return res.status(404).json({ message: "Appointment not found." });
+    if (!appointment) {
+      return res.status(404).json({ message: "Запис не знайдено." });
+    }
 
     if (String(appointment.doctor) !== req.user.id) {
-      return res.status(403).json({ message: "Access denied." });
+      return res.status(403).json({ message: "Доступ заборонено." });
     }
 
     if (appointment.status === "cancelled") {
       return res
         .status(400)
-        .json({ message: "Cannot update a cancelled appointment." });
+        .json({ message: "Неможливо змінити скасований запис." });
     }
 
     appointment.status = status;
@@ -124,17 +142,19 @@ exports.updateAppointmentStatus = async (req, res) => {
       scheduleAppointmentJob(appointment, io);
     }
 
-    res.json({ message: `Appointment status updated to ${status}.` });
+    res.status(200).json({ message: `Статус запису оновлено на '${status}'.` });
   } catch (error) {
-    console.error("Error updating appointment status:", error);
-    res.status(500).json({ message: "Server error." });
+    console.error("Помилка оновлення статусу:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
 
+// Отримання всіх записів певного лікаря
 exports.getDoctorAppointments = async (req, res) => {
   const { doctorId } = req.params;
+
   if (req.user.role === "doctor" && req.user.id !== doctorId) {
-    return res.status(403).json({ message: "Access denied." });
+    return res.status(403).json({ message: "Доступ заборонено." });
   }
 
   try {
@@ -144,15 +164,17 @@ exports.getDoctorAppointments = async (req, res) => {
 
     res.status(200).json(appointments);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка отримання записів лікаря:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
 
+// Отримання всіх записів певного пацієнта
 exports.getPatientAppointments = async (req, res) => {
   const { patientId } = req.params;
+
   if (req.user.role === "patient" && req.user.id !== patientId) {
-    return res.status(403).json({ message: "Access denied." });
+    return res.status(403).json({ message: "Доступ заборонено." });
   }
 
   try {
@@ -162,48 +184,55 @@ exports.getPatientAppointments = async (req, res) => {
 
     res.status(200).json(appointments);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Something went wrong." });
+    console.error("Помилка отримання записів пацієнта:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
 
+// Скасування підтвердженого запису
 exports.cancelAppointment = async (req, res) => {
   const { appointmentId } = req.params;
   const { id, role } = req.user;
 
   try {
     const appointment = await Appointment.findById(appointmentId);
-    if (!appointment)
-      return res.status(404).json({ message: "Appointment not found." });
+    if (!appointment) {
+      return res.status(404).json({ message: "Запис не знайдено." });
+    }
 
     const isOwner =
       (role === "doctor" && String(appointment.doctor) === id) ||
       (role === "patient" && String(appointment.patient) === id);
 
-    if (!isOwner) return res.status(403).json({ message: "Access denied." });
+    if (!isOwner) {
+      return res.status(403).json({ message: "Доступ заборонено." });
+    }
 
     if (appointment.status !== "confirmed") {
       return res
         .status(400)
-        .json({ message: "Only confirmed appointments can be cancelled." });
+        .json({ message: "Можна скасувати лише підтверджений запис." });
     }
 
     appointment.status = "cancelled";
     await appointment.save();
 
-    res.json({ message: "Appointment cancelled successfully." });
+    res.status(200).json({ message: "Запис скасовано успішно." });
   } catch (error) {
-    console.error("Error cancelling appointment:", error);
-    res.status(500).json({ message: "Server error." });
+    console.error("Помилка скасування запису:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
 
+// Отримання активного запису за ID чату
 exports.getActiveAppointmentByChat = async (req, res) => {
   const { chatId } = req.params;
 
   try {
     const chat = await Chat.findById(chatId);
-    if (!chat) return res.status(404).json({ message: "Чат не знайдено" });
+    if (!chat) {
+      return res.status(404).json({ message: "Чат не знайдено." });
+    }
 
     const [participant1, participant2] = chat.participants;
     const now = new Date();
@@ -216,7 +245,9 @@ exports.getActiveAppointmentByChat = async (req, res) => {
       date: today,
     });
 
-    if (!appointment) return res.json({ isActive: false });
+    if (!appointment) {
+      return res.json({ isActive: false });
+    }
 
     const startDateTime = new Date(
       `${appointment.date}T${appointment.startTime}:00`
@@ -238,13 +269,13 @@ exports.getActiveAppointmentByChat = async (req, res) => {
       }
     }
 
-    return res.json({
+    res.status(200).json({
       isActive,
       appointment,
       firestoreCallId,
     });
   } catch (error) {
-    console.error("❌ Помилка при перевірці апоінтменту:", error);
-    res.status(500).json({ message: "Помилка сервера" });
+    console.error("Помилка перевірки активного запису:", error);
+    res.status(500).json({ message: "Помилка сервера." });
   }
 };
