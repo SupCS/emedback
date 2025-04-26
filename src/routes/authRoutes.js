@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { registerPatient, loginUser } = require("../controllers/authController");
+const { authLimiter } = require("../middleware/rateLimiter");
 
 /**
  * @swagger
@@ -46,7 +47,7 @@ const { registerPatient, loginUser } = require("../controllers/authController");
  *       500:
  *         description: Виникла помилка на сервері
  */
-router.post("/register", registerPatient);
+router.post("/register", authLimiter, registerPatient);
 
 /**
  * @swagger
@@ -104,6 +105,6 @@ router.post("/register", registerPatient);
  *       500:
  *         description: Виникла помилка на сервері
  */
-router.post("/login", loginUser);
+router.post("/login", authLimiter, loginUser);
 
 module.exports = router;

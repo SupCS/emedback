@@ -3,33 +3,39 @@ const jwt = require("jsonwebtoken");
 const Patient = require("../models/Patient");
 const Doctor = require("../models/Doctor");
 
-// Обробка реєстрації нового пацієнта
+// Реєстрація нового пацієнта
 exports.registerPatient = async (req, res) => {
   const { name, email, password, phone } = req.body;
 
+  if (!name || !email || !password) {
+    return res
+      .status(400)
+      .json({ message: "Будь ласка, заповніть усі обов'язкові поля." });
+  }
+
   try {
     const [existingPatient, existingDoctor] = await Promise.all([
-      Patient.findOne({ email }),
-      Doctor.findOne({ email }),
+      Patient.findOne({ email: email.trim().toLowerCase() }),
+      Doctor.findOne({ email: email.trim().toLowerCase() }),
     ]);
 
     if (existingPatient || existingDoctor) {
-      return res.status(400).json({ message: "Email is already registered." });
+      return res.status(400).json({ message: "Цей email вже зареєстровано." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newPatient = new Patient({
-      name,
-      email,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
       password: hashedPassword,
-      phone,
+      phone: phone?.trim(),
     });
 
     await newPatient.save();
 
     res.status(201).json({
-      message: "Patient registered successfully.",
+      message: "Реєстрація пройшла успішно.",
       patient: {
         id: newPatient._id,
         name: newPatient.name,
@@ -38,36 +44,44 @@ exports.registerPatient = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
-      message: "Something went wrong. Please try again later.",
-    });
+    res
+      .status(500)
+      .json({ message: "Внутрішня помилка сервера. Спробуйте пізніше." });
   }
 };
 
-// Обробка логіну пацієнта або лікаря
+// Логін пацієнта або лікаря
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ message: "Будь ласка, введіть email і пароль." });
+  }
+
   try {
     const [patient, doctor] = await Promise.all([
-      Patient.findOne({ email }).select("+password"),
-      Doctor.findOne({ email }).select("+password"),
+      Patient.findOne({ email: email.trim().toLowerCase() }).select(
+        "+password"
+      ),
+      Doctor.findOne({ email: email.trim().toLowerCase() }).select("+password"),
     ]);
 
     const user = patient || doctor;
     const role = patient ? "patient" : doctor ? "doctor" : null;
 
     if (!user) {
-      return res.status(401).json({ message: "Invalid email or password." });
+      return res.status(401).json({ message: "Невірний email або пароль." });
     }
 
     if (user.isBlocked) {
-      return res.status(403).json({ message: "Your account is blocked." });
+      return res.status(403).json({ message: "Ваш акаунт заблоковано." });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password." });
+      return res.status(401).json({ message: "Невірний email або пароль." });
     }
 
     const token = jwt.sign(
@@ -77,7 +91,7 @@ exports.loginUser = async (req, res) => {
     );
 
     res.status(200).json({
-      message: "Login successful.",
+      message: "Вхід успішний.",
       token,
       role,
       user: {
@@ -87,8 +101,9 @@ exports.loginUser = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({
-      message: "Something went wrong. Please try again later.",
-    });
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "Внутрішня помилка сервера. Спробуйте пізніше." });
   }
 };
