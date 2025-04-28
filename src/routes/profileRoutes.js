@@ -73,7 +73,7 @@ router.get("/doctor/:id", getDoctorProfile);
  */
 router.get(
   "/patient/:id",
-  authenticate(["doctor", "patient"]),
+  authenticate(["doctor", "patient", "admin"]),
   getPatientProfile
 );
 

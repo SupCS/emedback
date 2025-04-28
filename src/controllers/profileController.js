@@ -53,7 +53,6 @@ exports.getDoctorProfile = async (req, res) => {
 // Отримання профілю пацієнта
 exports.getPatientProfile = async (req, res) => {
   const { id } = req.params;
-
   try {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Невалідний ID пацієнта." });
@@ -192,12 +191,9 @@ exports.updateProfile = async (req, res) => {
           trimmed.length < 4 ||
           !/^[a-zA-Zа-яА-ЯёЁіІїЇєЄґҐ' ]+$/.test(trimmed)
         ) {
-          return res
-            .status(400)
-            .json({
-              message:
-                "Ім'я має містити щонайменше 4 символи та бути валідним.",
-            });
+          return res.status(400).json({
+            message: "Ім'я має містити щонайменше 4 символи та бути валідним.",
+          });
         }
         user.name = trimmed;
       }

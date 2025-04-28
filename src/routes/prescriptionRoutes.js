@@ -72,7 +72,7 @@ router.post("/create", authenticate(["doctor"]), createPrescription);
  */
 router.get(
   "/patient/:patientId",
-  authenticate(["patient", "doctor"]),
+  authenticate(["patient", "doctor", "admin"]),
   getPrescriptionsByPatient
 );
 
@@ -100,7 +100,7 @@ router.get(
  */
 router.get(
   "/doctor/:doctorId",
-  authenticate(["doctor"]),
+  authenticate(["doctor", "admin"]),
   getPrescriptionsByDoctor
 );
 
