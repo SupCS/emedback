@@ -100,7 +100,27 @@ exports.createAppointment = async (req, res) => {
       });
       await chat.save();
     }
+
     scheduleAppointmentEndJob(newAppointment);
+
+    // Сповіщення лікарю через сокет
+    const io = req.app.get("io");
+    const payload = {
+      _id: newAppointment._id,
+      date: newAppointment.date,
+      startTime: newAppointment.startTime,
+      endTime: newAppointment.endTime,
+      patientId,
+      status: newAppointment.status,
+    };
+
+    const { users } = require("../socket/state");
+    const doctorSockets = users.get(doctorId);
+    if (doctorSockets) {
+      for (const socketId of doctorSockets) {
+        io.to(socketId).emit("newAppointmentRequest", payload);
+      }
+    }
 
     res.status(201).json({
       message: "Запис створено успішно.",
@@ -141,10 +161,28 @@ exports.updateAppointmentStatus = async (req, res) => {
     appointment.status = status;
     await appointment.save();
 
+    const io = req.app.get("io");
     if (status === "confirmed") {
-      const io = req.app.get("io");
       scheduleAppointmentStartJob(appointment, io);
       scheduleAppointmentEndJob(appointment);
+    }
+
+    // Сповіщення пацієнту через сокет
+    const { users } = require("../socket/state");
+    const patientSockets = users.get(appointment.patient.toString());
+    const payload = {
+      _id: appointment._id,
+      date: appointment.date,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      doctorId: appointment.doctor,
+      status: appointment.status,
+    };
+
+    if (patientSockets) {
+      for (const socketId of patientSockets) {
+        io.to(socketId).emit("appointmentStatusChanged", payload);
+      }
     }
 
     res.status(200).json({ message: `Статус запису оновлено на '${status}'.` });

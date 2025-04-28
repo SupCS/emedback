@@ -3,6 +3,7 @@ const authMiddleware = require("./auth");
 const chatHandlers = require("./chatHandlers");
 const videoHandlers = require("./videoHandlers");
 const disconnectHandler = require("./disconnectHandler");
+const appointmentHandlers = require("./appointmentHandlers");
 
 let io;
 
@@ -23,6 +24,7 @@ module.exports = {
       chatHandlers(socket, io);
       videoHandlers(socket, io);
       disconnectHandler(socket, io);
+      appointmentHandlers(socket, io);
     });
 
     return io;
