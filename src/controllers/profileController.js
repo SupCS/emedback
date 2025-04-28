@@ -1,9 +1,9 @@
 const Patient = require("../models/Patient");
 const Doctor = require("../models/Doctor");
 const mongoose = require("mongoose");
-const fs = require("fs");
-const path = require("path");
 const Appointment = require("../models/Appointment");
+const { storage } = require("../config/firebase");
+const { v4: uuidv4 } = require("uuid"); // для генерації унікального імені файлу
 
 // Отримання профілю лікаря
 exports.getDoctorProfile = async (req, res) => {
@@ -105,59 +105,67 @@ exports.uploadAvatar = async (req, res) => {
     const userId = req.user.id;
     const role = req.user.role;
 
-    const relativePath = path
-      .relative(path.join(__dirname, "../"), req.file.path)
-      .replace(/\\/g, "/");
-
     const userModel = role === "patient" ? Patient : Doctor;
     const user = await userModel.findById(userId);
 
     if (!user) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error("Помилка видалення нового файлу:", err);
-      });
       return res.status(404).json({ message: "Користувача не знайдено." });
     }
 
-    if (user.avatar) {
-      const oldAvatarPath = path.join(__dirname, "../", user.avatar);
-      if (fs.existsSync(oldAvatarPath)) {
-        fs.unlink(oldAvatarPath, (err) => {
-          if (err) console.error("Помилка видалення старого файлу:", err);
-          else deleteEmptyFolders(path.dirname(oldAvatarPath));
-        });
+    // Генеруємо унікальне ім'я файлу
+    const filename = `avatars/${uuidv4()}${
+      req.file.originalname
+        ? require("path").extname(req.file.originalname)
+        : ".jpg"
+    }`;
+    const file = storage.file(filename);
+
+    // Завантаження файлу у Firebase Storage
+    await file.save(req.file.buffer, {
+      metadata: {
+        contentType: req.file.mimetype,
+      },
+    });
+
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
+      storage.name
+    }/o/${encodeURIComponent(filename)}?alt=media`;
+
+    // Якщо є старий аватар — видаляємо
+    if (user.avatar && user.avatar.includes(storage.name)) {
+      const oldFilePath = user.avatar.split(`/${storage.name}/`)[1];
+      if (oldFilePath) {
+        await storage
+          .file(oldFilePath)
+          .delete()
+          .catch((err) => {
+            console.error("Не вдалося видалити старий аватар:", err.message);
+          });
       }
     }
 
-    user.avatar = relativePath;
+    // Оновлюємо профіль
+    user.avatar = publicUrl;
     await user.save();
 
-    res
-      .status(200)
-      .json({ message: "Аватарку оновлено.", avatar: relativePath });
+    res.status(200).json({ message: "Аватарку оновлено.", avatar: publicUrl });
   } catch (error) {
     console.error("Помилка при завантаженні аватарки:", error);
-    if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error("Помилка видалення нового файлу:", err);
-      });
-      deleteEmptyFolders(path.dirname(req.file.path));
-    }
     res.status(500).json({ message: "Помилка при завантаженні файлу." });
   }
 };
 
-// Відображення аватарки за шляхом
-exports.getAvatar = (req, res) => {
-  const requestedPath = req.params[0];
-  const filePath = path.join(__dirname, "../uploads", requestedPath);
+// // Відображення аватарки за шляхом
+// exports.getAvatar = (req, res) => {
+//   const requestedPath = req.params[0];
+//   const filePath = path.join(__dirname, "../uploads", requestedPath);
 
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).json({ message: "Файл не знайдено." });
-  }
-};
+//   if (fs.existsSync(filePath)) {
+//     res.sendFile(filePath);
+//   } else {
+//     res.status(404).json({ message: "Файл не знайдено." });
+//   }
+// };
 
 // Оновлення профілю лікаря або пацієнта
 exports.updateProfile = async (req, res) => {
@@ -309,18 +317,18 @@ exports.updateProfile = async (req, res) => {
   }
 };
 
-// Функція для видалення порожніх папок
-const deleteEmptyFolders = (folderPath) => {
-  try {
-    if (fs.existsSync(folderPath)) {
-      const files = fs.readdirSync(folderPath);
-      if (files.length === 0) {
-        fs.rmdirSync(folderPath);
-        const parentFolder = path.dirname(folderPath);
-        deleteEmptyFolders(parentFolder);
-      }
-    }
-  } catch (err) {
-    console.error("Помилка видалення порожньої папки:", err);
-  }
-};
+// // Функція для видалення порожніх папок
+// const deleteEmptyFolders = (folderPath) => {
+//   try {
+//     if (fs.existsSync(folderPath)) {
+//       const files = fs.readdirSync(folderPath);
+//       if (files.length === 0) {
+//         fs.rmdirSync(folderPath);
+//         const parentFolder = path.dirname(folderPath);
+//         deleteEmptyFolders(parentFolder);
+//       }
+//     }
+//   } catch (err) {
+//     console.error("Помилка видалення порожньої папки:", err);
+//   }
+// };

@@ -7,8 +7,10 @@ const serviceAccountPath =
 
 admin.initializeApp({
   credential: admin.credential.cert(require(serviceAccountPath)),
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
 });
 
 const db = admin.firestore();
+const storage = admin.storage().bucket();
 
-module.exports = { admin, db };
+module.exports = { admin, db, storage };

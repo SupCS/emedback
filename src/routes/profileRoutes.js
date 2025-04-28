@@ -6,7 +6,6 @@ const {
   getDoctorProfile,
   getPatientProfile,
   uploadAvatar,
-  getAvatar,
   updateProfile,
 } = require("../controllers/profileController");
 
@@ -81,7 +80,7 @@ router.get(
  * @swagger
  * /profile/upload-avatar:
  *   post:
- *     summary: Завантаження аватарки
+ *     summary: Завантаження аватарки користувача у Firebase Storage
  *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
@@ -97,7 +96,17 @@ router.get(
  *                 format: binary
  *     responses:
  *       200:
- *         description: Аватарка оновлена
+ *         description: Аватарка успішно завантажена. Повертається публічний URL.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 avatar:
+ *                   type: string
+ *                   example: https://storage.googleapis.com/emed-video.firebasestorage.app/avatars/unique-id.jpg
  *       400:
  *         description: Файл не завантажено
  *       404:
@@ -111,9 +120,6 @@ router.post(
   upload.single("avatar"),
   uploadAvatar
 );
-
-// Отримання аватарки за шляхом
-router.get("/avatar/*", getAvatar);
 
 /**
  * @swagger
