@@ -17,23 +17,24 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
 
-// --- CORS ---
+// CORS
 const allowedOrigins = ["http://localhost:5173"];
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Якщо немає origin (наприклад, запити від Postman) - дозволяємо
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS policy: Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS policy: Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+
+// Окрема обробка preflight (OPTIONS) запитів
+app.options("*", cors(corsOptions));
 
 // Інші мідлвари
 app.use(express.json());
