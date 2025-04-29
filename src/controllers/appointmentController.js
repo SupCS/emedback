@@ -304,10 +304,6 @@ exports.getActiveAppointmentByChat = async (req, res) => {
     );
 
     const isActive = now >= startDateTime && now < endDateTime;
-    console.log("now: ", now);
-    console.log("start: ", startDateTime);
-    console.log("end: ", endDateTime);
-
     let firestoreCallId = null;
 
     if (isActive) {
