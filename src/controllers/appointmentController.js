@@ -8,6 +8,8 @@ const {
 } = require("../utils/scheduler");
 const { db } = require("../config/firebase");
 
+const SERVER_TIME_OFFSET_MS = -3 * 60 * 60 * 1000;
+
 // Створення нового запису на прийом
 exports.createAppointment = async (req, res) => {
   const { doctorId, date, startTime, endTime } = req.body;
@@ -278,7 +280,9 @@ exports.getActiveAppointmentByChat = async (req, res) => {
     }
 
     const [participant1, participant2] = chat.participants;
-    const now = new Date();
+    let now = new Date();
+    now = new Date(now.getTime() + SERVER_TIME_OFFSET_MS); // Зміщуємо час сервера
+
     const today = now.toISOString().split("T")[0];
 
     const appointment = await Appointment.findOne({
@@ -298,6 +302,7 @@ exports.getActiveAppointmentByChat = async (req, res) => {
     const endDateTime = new Date(
       `${appointment.date}T${appointment.endTime}:00`
     );
+
     const isActive = now >= startDateTime && now < endDateTime;
 
     let firestoreCallId = null;
