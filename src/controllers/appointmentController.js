@@ -8,7 +8,7 @@ const {
 } = require("../utils/scheduler");
 const { db } = require("../config/firebase");
 
-const SERVER_TIME_OFFSET_MS = -3 * 60 * 60 * 1000;
+const SERVER_TIME_OFFSET_MS = 3 * 60 * 60 * 1000;
 
 // Створення нового запису на прийом
 exports.createAppointment = async (req, res) => {
