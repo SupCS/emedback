@@ -17,7 +17,25 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// --- CORS ---
+const allowedOrigins = ["http://localhost:5173"];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Якщо немає origin (наприклад, запити від Postman) - дозволяємо
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy: Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
+
+// Інші мідлвари
 app.use(express.json());
 app.use("/", routes);
 app.use(generalLimiter);
@@ -33,6 +51,7 @@ app.set("io", io);
   await rescheduleAllAppointments(io);
 })();
 
+// --- Старт сервера ---
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
