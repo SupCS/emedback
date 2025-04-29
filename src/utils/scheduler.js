@@ -6,6 +6,9 @@ const Chat = require("../models/Chat");
 
 const scheduledJobs = new Map();
 
+// Зміщення серверного часу (Heroku UTC => локальне GMT+3)
+const SERVER_TIME_OFFSET_MS = -3 * 60 * 60 * 1000;
+
 // Функція миттєвого оновлення статусу завершеного appointment
 async function handleAppointmentEndImmediately(appointmentId) {
   try {
@@ -34,7 +37,9 @@ async function handleAppointmentEndImmediately(appointmentId) {
 function scheduleAppointmentStartJob(appointment, io) {
   const { _id, date, startTime } = appointment;
 
-  const startDateTime = new Date(`${date}T${startTime}`);
+  let startDateTime = new Date(`${date}T${startTime}`);
+  startDateTime = new Date(startDateTime.getTime() + SERVER_TIME_OFFSET_MS);
+
   if (startDateTime < new Date()) {
     console.log(`Appointment ${_id} вже почався, старт не плануємо`);
     return;
@@ -118,7 +123,9 @@ function scheduleAppointmentStartJob(appointment, io) {
 function scheduleAppointmentEndJob(appointment) {
   const { _id, date, endTime } = appointment;
 
-  const endDateTime = new Date(`${date}T${endTime}:00`);
+  let endDateTime = new Date(`${date}T${endTime}:00`);
+  endDateTime = new Date(endDateTime.getTime() + SERVER_TIME_OFFSET_MS);
+
   if (endDateTime < new Date()) {
     console.log(`Appointment ${_id} вже завершився, оновлюємо статус...`);
     handleAppointmentEndImmediately(_id);

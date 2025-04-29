@@ -39,7 +39,7 @@ app.use(cors(corsOptions));
 // Спеціальна обробка preflight OPTIONS запитів
 app.options("*", cors(corsOptions));
 
-// --- Інші мідлвари ---
+// Інші мідлвари
 app.use(express.json());
 app.use("/", routes);
 app.use(generalLimiter);
