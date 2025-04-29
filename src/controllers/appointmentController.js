@@ -281,19 +281,19 @@ exports.getActiveAppointmentByChat = async (req, res) => {
 
     const [participant1, participant2] = chat.participants;
     let now = new Date();
-    now = new Date(now.getTime() + SERVER_TIME_OFFSET_MS); // Зміщуємо час сервера
+    now = new Date(now.getTime() + SERVER_TIME_OFFSET_MS);
 
     const today = now.toISOString().split("T")[0];
 
     const appointment = await Appointment.findOne({
       doctor: { $in: [participant1, participant2] },
       patient: { $in: [participant1, participant2] },
-      status: "confirmed",
+      status: { $in: ["pending", "confirmed"] },
       date: today,
     });
 
     if (!appointment) {
-      return res.json({ isActive: false });
+      return res.json({ isActive: false, firestoreCallId: null });
     }
 
     const startDateTime = new Date(
@@ -304,9 +304,14 @@ exports.getActiveAppointmentByChat = async (req, res) => {
     );
 
     const isActive = now >= startDateTime && now < endDateTime;
+    console.log("now: ", now);
+    console.log("start: ", startDateTime);
+    console.log("end: ", endDateTime);
 
     let firestoreCallId = null;
+
     if (isActive) {
+      // Якщо appointment зараз активний — шукаємо кімнату у Firestore
       const callsSnapshot = await db
         .collection("calls")
         .where("appointmentId", "==", appointment._id.toString())
