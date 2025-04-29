@@ -7,7 +7,6 @@ const routes = require("./routes");
 const swaggerDocs = require("./config/swagger");
 const connectDB = require("./config/db");
 const socket = require("./socket/index");
-const path = require("path");
 const { rescheduleAllAppointments } = require("./utils/scheduler");
 const { generalLimiter } = require("./middleware/rateLimiter");
 
@@ -21,7 +20,6 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use("/", routes);
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use(generalLimiter);
 
 swaggerDocs(app);
