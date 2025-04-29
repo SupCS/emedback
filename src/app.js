@@ -10,6 +10,7 @@ const socket = require("./socket/index");
 const { rescheduleAllAppointments } = require("./utils/scheduler");
 const { generalLimiter } = require("./middleware/rateLimiter");
 
+// Підключення до бази даних
 connectDB();
 
 const app = express();
@@ -17,7 +18,7 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
 
-// CORS
+// Налаштування CORS
 const allowedOrigins = ["http://localhost:5173"];
 
 const corsOptions = {
@@ -28,31 +29,34 @@ const corsOptions = {
       callback(new Error("CORS policy: Not allowed by CORS"));
     }
   },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
 
 app.use(cors(corsOptions));
 
-// Окрема обробка preflight (OPTIONS) запитів
+// Спеціальна обробка preflight OPTIONS запитів
 app.options("*", cors(corsOptions));
 
-// Інші мідлвари
+// --- Інші мідлвари ---
 app.use(express.json());
 app.use("/", routes);
 app.use(generalLimiter);
 
+// Swagger документація
 swaggerDocs(app);
 
 // Запускаємо WebSocket після ініціалізації сервера
 const io = socket.init(server);
 app.set("io", io);
 
-// Переплановуємо майбутні апоінтменти
+// Переплановуємо всі майбутні апоінтменти
 (async () => {
   await rescheduleAllAppointments(io);
 })();
 
-// --- Старт сервера ---
+// Старт сервера
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
