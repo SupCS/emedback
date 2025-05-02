@@ -4,6 +4,7 @@ const chatHandlers = require("./chatHandlers");
 const videoHandlers = require("./videoHandlers");
 const disconnectHandler = require("./disconnectHandler");
 const appointmentHandlers = require("./appointmentHandlers");
+const { users } = require("./state"); // 🔁 додано
 
 let io;
 
@@ -19,7 +20,19 @@ module.exports = {
     io.use(authMiddleware);
 
     io.on("connection", (socket) => {
-      console.log(`Connected: ${socket.user.id}`);
+      const userId = socket.user.id;
+
+      // ✅ Додаємо користувача в Map
+      if (!users.has(userId)) {
+        users.set(userId, new Set());
+      }
+      users.get(userId).add(socket.id);
+
+      console.log(`🟢 Connected: ${userId}`);
+      console.log(`📌 Socket ID: ${socket.id}`);
+      console.log(`📦 Поточні сокети користувача ${userId}:`, [
+        ...users.get(userId),
+      ]);
 
       chatHandlers(socket, io);
       videoHandlers(socket, io);
