@@ -690,48 +690,75 @@ exports.getDoctorStats = async (req, res) => {
     const { doctorId } = req.params;
     const { from, to } = req.query;
 
-    const toIsoDate = (date) => new Date(date).toISOString().split("T")[0];
-    const fromStr = from ? toIsoDate(from) : "2000-01-01";
-    const toStr = to ? toIsoDate(to) : "2100-01-01";
+    const fromDate = from ? new Date(from) : new Date("2000-01-01");
+    const toDate = to ? new Date(to) : new Date();
 
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) {
       return res.status(404).json({ message: "Лікаря не знайдено" });
     }
 
-    const appointments = await Appointment.aggregate([
+    const daily = await Appointment.aggregate([
       {
         $match: {
           doctor: doctor._id,
-          date: { $gte: fromStr, $lte: toStr },
+          date: {
+            $gte: fromDate.toISOString().split("T")[0],
+            $lte: toDate.toISOString().split("T")[0],
+          },
         },
       },
       {
         $group: {
-          _id: "$status",
+          _id: {
+            date: "$date",
+            status: "$status",
+          },
           count: { $sum: 1 },
         },
       },
+      {
+        $group: {
+          _id: "$_id.date",
+          stats: {
+            $push: {
+              k: "$_id.status",
+              v: "$count",
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: "$_id",
+          data: { $arrayToObject: "$stats" },
+        },
+      },
+      { $sort: { date: 1 } },
     ]);
 
-    const stats = {
-      pending: 0,
-      confirmed: 0,
-      cancelled: 0,
-      passed: 0,
-    };
+    const dailyStats = daily.map((d) => ({
+      date: d.date,
+      Created: Object.values(d.data).reduce((sum, val) => sum + val, 0),
+      Passed: d.data.passed || 0,
+      Cancelled: d.data.cancelled || 0,
+    }));
 
-    appointments.forEach((item) => {
-      stats[item._id] = item.count;
-    });
+    const totalCreated = dailyStats.reduce((sum, d) => sum + d.Created, 0);
+    const totalPassed = dailyStats.reduce((sum, d) => sum + d.Passed, 0);
+    const totalCancelled = dailyStats.reduce((sum, d) => sum + d.Cancelled, 0);
 
     res.status(200).json({
       doctorId: doctor._id,
       doctorName: doctor.name,
       specialization: doctor.specialization || null,
-      from: fromStr,
-      to: toStr,
-      stats,
+      from: fromDate.toISOString().split("T")[0],
+      to: toDate.toISOString().split("T")[0],
+      appointmentsCreated: totalCreated,
+      appointmentsPassed: totalPassed,
+      appointmentsCancelled: totalCancelled,
+      daily: dailyStats,
     });
   } catch (error) {
     console.error("Помилка при отриманні статистики лікаря:", error);
