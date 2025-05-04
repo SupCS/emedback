@@ -20,6 +20,7 @@ const {
   getAdminStats,
   deletePrescription,
   adminRemoveAvatar,
+  getDoctorStats,
 } = require("../controllers/adminController");
 
 router.post("/login", loginAdmin);
