@@ -2,6 +2,8 @@ const mongoose = require("mongoose");
 const DoctorSchedule = require("../models/DoctorSchedule");
 const Appointment = require("../models/Appointment");
 
+const SERVER_TIME_OFFSET_MS = 3 * 60 * 60 * 1000;
+
 // Перевірка перетину слотів
 const isOverlapping = (existingSlots, newSlot) => {
   const newStart = parseInt(newSlot.startTime.replace(":", ""), 10);
@@ -175,12 +177,14 @@ exports.getDoctorSchedule = async (req, res) => {
       return res.status(200).json({ doctorId, availability: [] });
     }
 
-    const now = new Date();
+    let now = new Date();
+    now = new Date(now.getTime() + SERVER_TIME_OFFSET_MS); // Корекція часу
+
     schedule.availability = schedule.availability
       .map((day) => ({
         date: day.date,
         slots: day.slots.filter(
-          (slot) => new Date(`${day.date}T${slot.endTime}:00`) > now
+          (slot) => new Date(`${day.date}T${slot.startTime}:00`) > now
         ),
       }))
       .filter((day) => day.slots.length > 0);
