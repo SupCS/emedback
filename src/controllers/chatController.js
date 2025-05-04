@@ -11,11 +11,9 @@ exports.createChat = async (req, res) => {
     const { userId, userType, recipientId, recipientType } = req.body;
 
     if (userType === "Patient" && recipientType === "Patient") {
-      return res
-        .status(400)
-        .json({
-          message: "Пацієнти не можуть створювати чати з іншими пацієнтами.",
-        });
+      return res.status(400).json({
+        message: "Пацієнти не можуть створювати чати з іншими пацієнтами.",
+      });
     }
 
     let chat = await Chat.findOne({
@@ -124,10 +122,19 @@ exports.getMessages = async (req, res) => {
       createdAt: 1,
     });
 
-    const decryptedMessages = messages.map((m) => ({
-      ...m.toObject(),
-      content: decrypt(m.content),
-    }));
+    const decryptedMessages = messages.map((m) => {
+      try {
+        return {
+          ...m.toObject(),
+          content: decrypt(m.content),
+        };
+      } catch (err) {
+        return {
+          ...m.toObject(),
+          content: m.content,
+        };
+      }
+    });
 
     res.status(200).json(decryptedMessages);
   } catch (error) {
@@ -171,12 +178,10 @@ exports.getUnreadMessages = async (req, res) => {
     res.json(unreadCounts);
   } catch (error) {
     console.error("Помилка при отриманні непрочитаних повідомлень:", error);
-    res
-      .status(500)
-      .json({
-        message: "Помилка при отриманні непрочитаних повідомлень",
-        error,
-      });
+    res.status(500).json({
+      message: "Помилка при отриманні непрочитаних повідомлень",
+      error,
+    });
   }
 };
 
