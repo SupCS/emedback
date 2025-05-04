@@ -684,6 +684,60 @@ exports.getAdminStats = async (req, res) => {
   }
 };
 
+// GET /admin/stats/doctor/:doctorId
+exports.getDoctorStats = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { from, to } = req.query;
+
+    const fromDate = from ? new Date(from) : new Date("2000-01-01");
+    const toDate = to ? new Date(to) : new Date();
+
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({ message: "Лікаря не знайдено" });
+    }
+
+    const appointments = await Appointment.aggregate([
+      {
+        $match: {
+          doctor: doctor._id,
+          date: { $gte: fromDate, $lte: toDate },
+        },
+      },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const stats = {
+      pending: 0,
+      confirmed: 0,
+      cancelled: 0,
+      passed: 0,
+    };
+
+    appointments.forEach((item) => {
+      stats[item._id] = item.count;
+    });
+
+    res.status(200).json({
+      doctorId: doctor._id,
+      doctorName: doctor.name,
+      specialization: doctor.specialization || null,
+      from: fromDate.toISOString().split("T")[0],
+      to: toDate.toISOString().split("T")[0],
+      stats,
+    });
+  } catch (error) {
+    console.error("❌ Помилка при отриманні статистики лікаря:", error);
+    res.status(500).json({ message: "Помилка сервера при статистиці лікаря" });
+  }
+};
+
 // PATCH /admin/remove-avatar
 exports.adminRemoveAvatar = async (req, res) => {
   const { role, id } = req.params;
