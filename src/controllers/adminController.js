@@ -690,8 +690,9 @@ exports.getDoctorStats = async (req, res) => {
     const { doctorId } = req.params;
     const { from, to } = req.query;
 
-    const fromDate = from ? new Date(from) : new Date("2000-01-01");
-    const toDate = to ? new Date(to) : new Date();
+    const toIsoDate = (date) => new Date(date).toISOString().split("T")[0];
+    const fromStr = from ? toIsoDate(from) : "2000-01-01";
+    const toStr = to ? toIsoDate(to) : "2100-01-01";
 
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) {
@@ -702,7 +703,7 @@ exports.getDoctorStats = async (req, res) => {
       {
         $match: {
           doctor: doctor._id,
-          date: { $gte: fromDate, $lte: toDate },
+          date: { $gte: fromStr, $lte: toStr },
         },
       },
       {
@@ -728,12 +729,12 @@ exports.getDoctorStats = async (req, res) => {
       doctorId: doctor._id,
       doctorName: doctor.name,
       specialization: doctor.specialization || null,
-      from: fromDate.toISOString().split("T")[0],
-      to: toDate.toISOString().split("T")[0],
+      from: fromStr,
+      to: toStr,
       stats,
     });
   } catch (error) {
-    console.error("❌ Помилка при отриманні статистики лікаря:", error);
+    console.error("Помилка при отриманні статистики лікаря:", error);
     res.status(500).json({ message: "Помилка сервера при статистиці лікаря" });
   }
 };
