@@ -19,7 +19,10 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // Налаштування CORS
-const allowedOrigins = ["http://localhost:5173"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://emedasparian.netlify.app",
+];
 
 const corsOptions = {
   origin: (origin, callback) => {
