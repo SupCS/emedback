@@ -1,27 +1,27 @@
 const crypto = require("crypto");
-const secretKey = process.env.MESSAGE_SECRET_KEY;
-const ivLength = 16;
+const rawKey = process.env.MESSAGE_SECRET_KEY;
+const key = crypto.createHash("sha256").update(rawKey).digest(); // 32 байти
+const IV_LENGTH = 16;
 
+// Шифрування
 exports.encrypt = (text) => {
-  const iv = crypto.randomBytes(ivLength);
-  const cipher = crypto.createCipheriv(
-    "aes-256-cbc",
-    Buffer.from(secretKey),
-    iv
-  );
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(text, "utf8", "hex");
   encrypted += cipher.final("hex");
   return iv.toString("hex") + ":" + encrypted;
 };
 
+// Розшифрування
 exports.decrypt = (encryptedText) => {
   const [ivHex, encrypted] = encryptedText.split(":");
+
+  if (!ivHex || !encrypted) {
+    throw new Error("Невірний формат шифрованого повідомлення.");
+  }
+
   const iv = Buffer.from(ivHex, "hex");
-  const decipher = crypto.createDecipheriv(
-    "aes-256-cbc",
-    Buffer.from(secretKey),
-    iv
-  );
+  const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
   let decrypted = decipher.update(encrypted, "hex", "utf8");
   decrypted += decipher.final("utf8");
   return decrypted;

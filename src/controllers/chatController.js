@@ -83,6 +83,9 @@ exports.sendMessage = async (req, res) => {
 
     const encryptedContent = encrypt(content);
 
+    console.log("Оригінал:", content);
+    console.log("Зашифроване:", encryptedContent);
+
     const message = new Message({
       chat: chatId,
       sender: senderId,
