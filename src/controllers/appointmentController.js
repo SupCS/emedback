@@ -238,6 +238,13 @@ exports.getPatientAppointments = async (req, res) => {
 exports.cancelAppointment = async (req, res) => {
   const { appointmentId } = req.params;
   const { id, role } = req.user;
+  const { reason } = req.body;
+
+  if (!reason || reason.length < 5 || reason.length > 100) {
+    return res
+      .status(400)
+      .json({ message: "Причина скасування має бути від 5 до 100 символів." });
+  }
 
   try {
     const appointment = await Appointment.findById(appointmentId);
@@ -260,6 +267,7 @@ exports.cancelAppointment = async (req, res) => {
     }
 
     appointment.status = "cancelled";
+    appointment.cancelReason = reason;
     await appointment.save();
 
     res.status(200).json({ message: "Запис скасовано успішно." });

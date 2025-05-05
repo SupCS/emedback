@@ -28,6 +28,11 @@ const appointmentSchema = new mongoose.Schema({
     enum: ["pending", "confirmed", "cancelled", "passed"],
     default: "pending",
   },
+  cancelReason: {
+    type: String,
+    minlength: 5,
+    maxlength: 100,
+  },
   isRated: {
     type: Boolean,
     default: false,
