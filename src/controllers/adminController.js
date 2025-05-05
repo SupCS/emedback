@@ -576,9 +576,16 @@ exports.adminUpdatePatient = async (req, res) => {
 // PATCH /admin/appointments/:id/cancel
 exports.adminCancelAppointment = async (req, res) => {
   const { id } = req.params;
+  const { reason } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: "Невалідний ID апоінтменту." });
+  }
+
+  if (!reason || reason.trim().length < 5 || reason.trim().length > 100) {
+    return res.status(400).json({
+      message: "Причина скасування повинна містити від 5 до 100 символів.",
+    });
   }
 
   try {
@@ -593,6 +600,7 @@ exports.adminCancelAppointment = async (req, res) => {
     }
 
     appointment.status = "cancelled";
+    appointment.cancelReason = reason.trim();
     await appointment.save();
 
     res
