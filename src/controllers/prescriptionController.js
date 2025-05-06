@@ -100,7 +100,8 @@ exports.createPrescription = async (req, res) => {
     const storage = getStorage();
     const bucket = storage.bucket();
 
-    for (const file of files) {
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
       const fileName = `attachments/${uuidv4()}_${file.originalname}`;
       const fileUpload = bucket.file(fileName);
 
@@ -115,7 +116,7 @@ exports.createPrescription = async (req, res) => {
       }/o/${encodeURIComponent(fileName)}?alt=media`;
 
       attachments.push({
-        title: req.body[`${file.fieldname}_title`],
+        title: req.body[`attachments_title_${index}`],
         url: publicUrl,
       });
     }
