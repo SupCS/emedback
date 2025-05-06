@@ -5,6 +5,33 @@ const fontkit = require("fontkit");
 const { storage } = require("../config/firebase");
 const { v4: uuidv4 } = require("uuid");
 
+function formatUkrainianMonth(monthNumber) {
+  const months = [
+    "січень",
+    "лютий",
+    "березень",
+    "квітень",
+    "травень",
+    "червень",
+    "липень",
+    "серпень",
+    "вересень",
+    "жовтень",
+    "листопад",
+    "грудень",
+  ];
+  const index = parseInt(monthNumber, 10) - 1;
+  return months[index] || "";
+}
+
+function formatBirthDateToShort(dateStr) {
+  const date = new Date(dateStr);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}${month}${year}`;
+}
+
 async function generatePrescriptionPDF(data) {
   const pdfPath = path.join(
     __dirname,
@@ -23,18 +50,26 @@ async function generatePrescriptionPDF(data) {
   const customFont = await pdfDoc.embedFont(fontBytes);
   const form = pdfDoc.getForm();
 
+  const formattedBirthDate = data.birthDate
+    ? formatBirthDateToShort(data.birthDate)
+    : "";
+  const formattedMonth = data.dateMonth
+    ? formatUkrainianMonth(data.dateMonth)
+    : "";
+  const shortYear = data.dateYear ? data.dateYear.slice(-2) : "";
+
   const fields = {
     institution: data.institution || "",
     patientName: data.patientName || "",
     labResults: data.labResults || "",
-    birthDate: data.birthDate || "",
+    birthDate: formattedBirthDate,
     doctor: data.doctor || "",
     specialResults: data.specialResults || "",
     diagnosis: data.diagnosis || "",
     recommendations: data.treatment || "",
     dateDay: data.dateDay || "",
-    dateMonth: data.dateMonth || "",
-    dateYear: data.dateYear || "",
+    dateMonth: formattedMonth,
+    dateYear: shortYear,
     doctorName: data.doctorName || "",
     headName: data.headName || "",
     nakaz1: data.nakaz1 || "",
@@ -44,12 +79,10 @@ async function generatePrescriptionPDF(data) {
     headerAddress: data.headerAddress || "",
   };
 
-  // Вивід доступних полів у формі
   const availableFieldNames = form.getFields().map((field) => field.getName());
   console.log("🔍 Перелік доступних полів у формі:");
   availableFieldNames.forEach((name) => console.log("—", name));
 
-  // Заповнення тільки існуючих полів
   for (const [fieldName, value] of Object.entries(fields)) {
     if (availableFieldNames.includes(fieldName)) {
       try {
@@ -64,7 +97,6 @@ async function generatePrescriptionPDF(data) {
     }
   }
 
-  // Робимо PDF нередагованим
   form.flatten();
 
   const pdfBytes = await pdfDoc.save();
