@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authenticate = require("../middleware/authMiddleware");
-const upload = require("../middleware/uploadMiddleware");
+const upload = require("../middleware/uploadPrescriptionFiles");
 const {
   getDoctorProfile,
   getPatientProfile,
