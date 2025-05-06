@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authenticate = require("../middleware/authMiddleware");
+const uploadPrescriptionFiles = require("../middleware/uploadPrescriptionFiles");
 const {
   createPrescription,
   getPrescriptionsByPatient,
@@ -25,7 +26,7 @@ const {
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *          multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -83,7 +84,12 @@ const {
  *         description: Помилка сервера
  */
 
-router.post("/create", authenticate(["doctor"]), createPrescription);
+router.post(
+  "/create",
+  authenticate(["doctor"]),
+  uploadPrescriptionFiles.array("attachments", 4),
+  createPrescription
+);
 
 /**
  * @swagger

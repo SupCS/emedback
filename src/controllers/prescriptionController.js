@@ -2,33 +2,34 @@ const mongoose = require("mongoose");
 const Prescription = require("../models/Prescription");
 const Appointment = require("../models/Appointment");
 const { generatePrescriptionPDF } = require("../utils/pdfGenerator");
-
+const { getStorage } = require("firebase-admin/storage");
+const { v4: uuidv4 } = require("uuid");
 exports.createPrescription = async (req, res) => {
-  const {
-    patientId,
-    institution,
-    patientName,
-    labResults,
-    birthDate,
-    doctorText,
-    specialResults,
-    diagnosis,
-    treatment,
-    dateDay,
-    dateMonth,
-    dateYear,
-    doctorName,
-    headName,
-    nakaz1,
-    nakaz2,
-    headerName,
-    codeEDRPOU,
-    headerAddress,
-  } = req.body;
-
-  const doctorId = req.user.id;
-
   try {
+    const {
+      patientId,
+      institution,
+      patientName,
+      labResults,
+      birthDate,
+      doctorText,
+      specialResults,
+      diagnosis,
+      treatment,
+      dateDay,
+      dateMonth,
+      dateYear,
+      doctorName,
+      headName,
+      nakaz1,
+      nakaz2,
+      headerName,
+      codeEDRPOU,
+      headerAddress,
+    } = req.body;
+
+    const doctorId = req.user.id;
+
     if (!mongoose.Types.ObjectId.isValid(patientId)) {
       return res.status(400).json({ message: "Невірний ID пацієнта." });
     }
@@ -36,7 +37,7 @@ exports.createPrescription = async (req, res) => {
     if (!diagnosis || !treatment) {
       return res
         .status(400)
-        .json({ message: "Діагноз і лікування є обов'язковими полями." });
+        .json({ message: "Діагноз і лікування обов’язкові." });
     }
 
     if (
@@ -50,9 +51,9 @@ exports.createPrescription = async (req, res) => {
         .json({ message: "Діагноз або лікування занадто довгі." });
     }
 
+    // Перевірка прийому
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
     const recentAppointment = await Appointment.findOne({
       doctor: doctorId,
       patient: patientId,
@@ -66,6 +67,7 @@ exports.createPrescription = async (req, res) => {
       });
     }
 
+    // Генерація основного PDF
     const pdfUrl = await generatePrescriptionPDF({
       institution,
       patientName,
@@ -87,6 +89,38 @@ exports.createPrescription = async (req, res) => {
       headerAddress,
     });
 
+    // Обробка додаткових PDF-файлів
+    const attachments = [];
+    const files = req.files || [];
+
+    if (files.length > 4) {
+      return res.status(400).json({ message: "Максимум 4 додаткові файли." });
+    }
+
+    const storage = getStorage();
+    const bucket = storage.bucket();
+
+    for (const file of files) {
+      const fileName = `attachments/${uuidv4()}_${file.originalname}`;
+      const fileUpload = bucket.file(fileName);
+
+      await fileUpload.save(file.buffer, {
+        metadata: {
+          contentType: file.mimetype,
+        },
+      });
+
+      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
+        bucket.name
+      }/o/${encodeURIComponent(fileName)}?alt=media`;
+
+      attachments.push({
+        title: req.body[`${file.fieldname}_title`],
+        url: publicUrl,
+      });
+    }
+
+    // Створення призначення
     const newPrescription = new Prescription({
       doctor: doctorId,
       patient: patientId,
@@ -109,6 +143,7 @@ exports.createPrescription = async (req, res) => {
       codeEDRPOU,
       headerAddress,
       pdfUrl,
+      attachments,
     });
 
     await newPrescription.save();
@@ -119,9 +154,7 @@ exports.createPrescription = async (req, res) => {
     });
   } catch (error) {
     console.error("Помилка створення призначення:", error);
-    res
-      .status(500)
-      .json({ message: "Сталася помилка на сервері. Спробуйте пізніше." });
+    res.status(500).json({ message: "Сталася помилка на сервері." });
   }
 };
 

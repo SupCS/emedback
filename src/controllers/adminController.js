@@ -237,28 +237,46 @@ exports.deletePrescription = async (req, res) => {
       return res.status(404).json({ message: "Призначення не знайдено." });
     }
 
-    // Видалення PDF із Firebase Storage
+    const storage = getStorage();
+    const bucket = storage.bucket();
+
+    // Видалення основного PDF
     if (prescription.pdfUrl) {
       try {
-        const storage = getStorage();
         const decodedUrl = decodeURIComponent(prescription.pdfUrl);
-        const bucket = storage.bucket();
-
-        const filePath = decodedUrl.split("/o/")[1]?.split("?")[0]; // отримаємо шлях до файлу
+        const filePath = decodedUrl.split("/o/")[1]?.split("?")[0];
         if (filePath) {
           await bucket.file(filePath).delete();
         }
       } catch (err) {
-        console.warn(
-          "Не вдалося видалити PDF з Firebase Storage:",
-          err.message
-        );
+        console.warn("Не вдалося видалити PDF з Firebase:", err.message);
       }
     }
 
+    // Видалення вкладень
+    if (Array.isArray(prescription.attachments)) {
+      for (const attachment of prescription.attachments) {
+        try {
+          const decodedUrl = decodeURIComponent(attachment.url);
+          const filePath = decodedUrl.split("/o/")[1]?.split("?")[0];
+          if (filePath) {
+            await bucket.file(filePath).delete();
+          }
+        } catch (err) {
+          console.warn(
+            `Не вдалося видалити вкладення "${attachment.title}":`,
+            err.message
+          );
+        }
+      }
+    }
+
+    // Видалення документа з бази
     await prescription.deleteOne();
 
-    res.status(200).json({ message: "Призначення та PDF успішно видалені." });
+    res
+      .status(200)
+      .json({ message: "Призначення та пов’язані файли успішно видалено." });
   } catch (error) {
     console.error("Помилка при видаленні призначення:", error);
     res
