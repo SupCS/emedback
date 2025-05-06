@@ -9,6 +9,7 @@ const Patient = require("../models/Patient");
 const Appointment = require("../models/Appointment");
 const Prescription = require("../models/Prescription");
 const DoctorSchedule = require("../models/DoctorSchedule");
+const { getStorage } = require("firebase-admin/storage");
 
 // POST /admin/login
 exports.loginAdmin = async (req, res) => {
@@ -209,7 +210,7 @@ exports.getAllPrescriptions = async (req, res) => {
     }
 
     const prescriptions = await Prescription.find(filter)
-      .populate("doctor", "name email")
+      .populate("doctor", "name email specialization")
       .populate("patient", "name email");
 
     res.status(200).json(prescriptions);
@@ -230,13 +231,34 @@ exports.deletePrescription = async (req, res) => {
   }
 
   try {
-    const deleted = await Prescription.findByIdAndDelete(id);
+    const prescription = await Prescription.findById(id);
 
-    if (!deleted) {
+    if (!prescription) {
       return res.status(404).json({ message: "Призначення не знайдено." });
     }
 
-    res.status(200).json({ message: "Призначення успішно видалено." });
+    // Видалення PDF із Firebase Storage
+    if (prescription.pdfUrl) {
+      try {
+        const storage = getStorage();
+        const decodedUrl = decodeURIComponent(prescription.pdfUrl);
+        const bucket = storage.bucket();
+
+        const filePath = decodedUrl.split("/o/")[1]?.split("?")[0]; // отримаємо шлях до файлу
+        if (filePath) {
+          await bucket.file(filePath).delete();
+        }
+      } catch (err) {
+        console.warn(
+          "Не вдалося видалити PDF з Firebase Storage:",
+          err.message
+        );
+      }
+    }
+
+    await prescription.deleteOne();
+
+    res.status(200).json({ message: "Призначення та PDF успішно видалені." });
   } catch (error) {
     console.error("Помилка при видаленні призначення:", error);
     res
