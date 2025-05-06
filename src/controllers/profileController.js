@@ -445,12 +445,18 @@ exports.removeDocument = async (req, res) => {
   }
 };
 
+const Patient = require("../models/Patient");
+const Doctor = require("../models/Doctor");
+
 exports.getDocuments = async (req, res) => {
-  const { id, role } = req.user;
+  const requestedUserId = req.params.userId || req.user.id;
 
   try {
-    const userModel = role === "patient" ? Patient : Doctor;
-    const user = await userModel.findById(id);
+    let user = await Patient.findById(requestedUserId);
+
+    if (!user) {
+      user = await Doctor.findById(requestedUserId);
+    }
 
     if (!user || !Array.isArray(user.documents)) {
       return res

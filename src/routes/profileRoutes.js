@@ -244,12 +244,19 @@ router.delete(
 
 /**
  * @swagger
- * /profile/documents:
+ * /profile/documents/{userId}:
  *   get:
- *     summary: Отримання усіх документів користувача
+ *     summary: Отримання документів користувача за ID
  *     tags: [Profile]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: ID користувача (пацієнта або лікаря)
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: Список документів
@@ -269,9 +276,16 @@ router.delete(
  *                         type: string
  *                       url:
  *                         type: string
+ *       404:
+ *         description: Користувача або документів не знайдено
  *       500:
  *         description: Помилка сервера
  */
-router.get("/documents", authenticate(["doctor", "patient"]), getDocuments);
+
+router.get(
+  "/documents/:userId",
+  authenticate(["doctor", "patient", "admin"]),
+  getDocuments
+);
 
 module.exports = router;
