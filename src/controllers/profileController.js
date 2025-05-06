@@ -445,9 +445,6 @@ exports.removeDocument = async (req, res) => {
   }
 };
 
-const Patient = require("../models/Patient");
-const Doctor = require("../models/Doctor");
-
 exports.getDocuments = async (req, res) => {
   const requestedUserId = req.params.userId || req.user.id;
 
