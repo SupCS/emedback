@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const Appointment = require("../models/Appointment");
 const { storage } = require("../config/firebase");
 const { v4: uuidv4 } = require("uuid"); // для генерації унікального імені файлу
+const path = require("path");
 
 // Отримання профілю лікаря
 exports.getDoctorProfile = async (req, res) => {
@@ -332,3 +333,114 @@ exports.updateProfile = async (req, res) => {
 //     console.error("Помилка видалення порожньої папки:", err);
 //   }
 // };
+
+// Завантаження PDF-документа до профілю користувача
+exports.uploadDocument = async (req, res) => {
+  try {
+    const { title } = req.body;
+    const file = req.file;
+
+    if (!file || file.mimetype !== "application/pdf") {
+      return res
+        .status(400)
+        .json({ message: "Необхідно завантажити PDF-файл." });
+    }
+
+    if (!title || typeof title !== "string" || title.trim().length < 2) {
+      return res
+        .status(400)
+        .json({ message: "Тайтл документа є обовʼязковим." });
+    }
+
+    const userId = req.user.id;
+    const role = req.user.role;
+
+    const userModel = role === "patient" ? Patient : Doctor;
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "Користувача не знайдено." });
+    }
+
+    const filename = `profile-documents/${uuidv4()}.pdf`;
+    const firebaseFile = storage.file(filename);
+
+    await firebaseFile.save(file.buffer, {
+      metadata: { contentType: "application/pdf" },
+    });
+
+    const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${
+      storage.name
+    }/o/${encodeURIComponent(filename)}?alt=media`;
+
+    const newDoc = {
+      _id: new mongoose.Types.ObjectId(),
+      title: title.trim(),
+      url: publicUrl,
+      storagePath: filename,
+    };
+
+    user.documents = [...(user.documents || []), newDoc];
+    await user.save();
+
+    res.status(200).json({
+      message: "Документ успішно завантажено",
+      document: {
+        id: newDoc._id,
+        title: newDoc.title,
+        url: newDoc.url,
+      },
+    });
+  } catch (error) {
+    console.error("Помилка завантаження документа:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при завантаженні документа." });
+  }
+};
+
+// Видалення документа з профілю користувача
+exports.removeDocument = async (req, res) => {
+  const docId = req.params.docId;
+  const userId = req.user.id;
+  const role = req.user.role;
+
+  try {
+    const userModel = role === "patient" ? Patient : Doctor;
+    const user = await userModel.findById(userId);
+
+    if (!user || !Array.isArray(user.documents)) {
+      return res
+        .status(404)
+        .json({ message: "Користувача або документів не знайдено." });
+    }
+
+    const docIndex = user.documents.findIndex(
+      (doc) => doc._id.toString() === docId
+    );
+    if (docIndex === -1) {
+      return res.status(404).json({ message: "Документ не знайдено." });
+    }
+
+    const [removedDoc] = user.documents.splice(docIndex, 1);
+
+    // Видалення з Firebase Storage
+    if (removedDoc.storagePath) {
+      await storage
+        .file(removedDoc.storagePath)
+        .delete()
+        .catch((err) => {
+          console.error("Не вдалося видалити файл з Firebase:", err.message);
+        });
+    }
+
+    await user.save();
+
+    res.status(200).json({ message: "Документ успішно видалено." });
+  } catch (error) {
+    console.error("Помилка видалення документа:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при видаленні документа." });
+  }
+};

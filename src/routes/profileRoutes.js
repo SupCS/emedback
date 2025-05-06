@@ -7,6 +7,8 @@ const {
   getPatientProfile,
   uploadAvatar,
   updateProfile,
+  uploadDocument,
+  removeDocument,
 } = require("../controllers/profileController");
 
 /**
@@ -155,5 +157,88 @@ router.post(
  *         description: Помилка сервера
  */
 router.patch("/update", authenticate(["doctor", "patient"]), updateProfile);
+
+/**
+ * @swagger
+ * /profile/upload-document:
+ *   post:
+ *     summary: Завантаження PDF-документа до профілю
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - document
+ *               - title
+ *             properties:
+ *               document:
+ *                 type: string
+ *                 format: binary
+ *                 description: PDF-файл
+ *               title:
+ *                 type: string
+ *                 description: Назва документа
+ *     responses:
+ *       200:
+ *         description: Документ успішно завантажено
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 document:
+ *                   type: object
+ *                   properties:
+ *                     title:
+ *                       type: string
+ *                     url:
+ *                       type: string
+ *       400:
+ *         description: Невалідний запит
+ *       500:
+ *         description: Помилка сервера
+ */
+router.post(
+  "/upload-document",
+  authenticate(["doctor", "patient"]),
+  upload.single("document"),
+  uploadDocument
+);
+
+/**
+ * @swagger
+ * /profile/remove-document/{docId}:
+ *   delete:
+ *     summary: Видалення документа з профілю користувача
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: docId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID документа, який потрібно видалити
+ *     responses:
+ *       200:
+ *         description: Документ успішно видалено
+ *       404:
+ *         description: Документ не знайдено
+ *       500:
+ *         description: Помилка сервера
+ */
+router.delete(
+  "/remove-document/:docId",
+  authenticate(["doctor", "patient"]),
+  removeDocument
+);
 
 module.exports = router;

@@ -26,7 +26,17 @@ const patientSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
-
+  documents: [
+    {
+      _id: {
+        type: mongoose.Types.ObjectId,
+        default: () => new mongoose.Types.ObjectId(),
+      },
+      title: { type: String, required: true },
+      url: { type: String, required: true },
+      storagePath: { type: String, required: true },
+    },
+  ],
   // Біологічні дані
   birthDate: {
     type: Date,
