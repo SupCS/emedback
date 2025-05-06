@@ -44,19 +44,27 @@ async function generatePrescriptionPDF(data) {
     headerAddress: data.headerAddress || "",
   };
 
+  // Вивід доступних полів у формі
+  const availableFieldNames = form.getFields().map((field) => field.getName());
   console.log("🔍 Перелік доступних полів у формі:");
-  form.getFields().forEach((field) => console.log("—", field.getName()));
+  availableFieldNames.forEach((name) => console.log("—", name));
 
+  // Заповнення тільки існуючих полів
   for (const [fieldName, value] of Object.entries(fields)) {
-    try {
-      const field = form.getTextField(fieldName);
-      field.setText(value);
-      field.updateAppearances(customFont);
-    } catch {
-      console.warn(`Поле '${fieldName}' не знайдено`);
+    if (availableFieldNames.includes(fieldName)) {
+      try {
+        const field = form.getTextField(fieldName);
+        field.setText(value);
+        field.updateAppearances(customFont);
+      } catch (error) {
+        console.warn(`Не вдалося оновити поле '${fieldName}':`, error.message);
+      }
+    } else {
+      console.warn(`Поле '${fieldName}' не знайдено у формі`);
     }
   }
 
+  // Робимо PDF нередагованим
   form.flatten();
 
   const pdfBytes = await pdfDoc.save();
