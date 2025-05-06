@@ -40,10 +40,10 @@ exports.createPrescription = async (req, res) => {
     }
 
     if (
-      diagnosis.length > 100 ||
-      treatment.length > 100 ||
-      specialResults.length > 100 ||
-      labResults.length > 100
+      diagnosis.length > 200 ||
+      treatment.length > 200 ||
+      specialResults.length > 200 ||
+      labResults.length > 300
     ) {
       return res
         .status(400)
