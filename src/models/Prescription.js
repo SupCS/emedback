@@ -11,6 +11,13 @@ const prescriptionSchema = new mongoose.Schema({
     ref: "Patient",
     required: true,
   },
+  institution: String,
+  patientName: String,
+  labResults: String,
+  birthDate: String,
+  doctorName: String,
+  doctor: String,
+  specialResults: String,
   diagnosis: {
     type: String,
     required: true,
@@ -19,8 +26,17 @@ const prescriptionSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  validUntil: {
-    type: Date,
+  dateDay: String,
+  dateMonth: String,
+  dateYear: String,
+  headName: String,
+  nakaz1: String,
+  nakaz2: String,
+  headerName: String,
+  codeEDRPOU: String,
+  headerAddress: String,
+  pdfUrl: {
+    type: String,
     required: false,
   },
   createdAt: {

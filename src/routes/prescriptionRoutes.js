@@ -28,24 +28,61 @@ const {
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - patientId
+ *               - diagnosis
+ *               - treatment
  *             properties:
  *               patientId:
+ *                 type: string
+ *                 description: ID пацієнта
+ *               institution:
+ *                 type: string
+ *               patientName:
+ *                 type: string
+ *               labResults:
+ *                 type: string
+ *               birthDate:
+ *                 type: string
+ *               doctor:
+ *                 type: string
+ *               specialResults:
  *                 type: string
  *               diagnosis:
  *                 type: string
  *               treatment:
  *                 type: string
- *               validUntil:
+ *               dateDay:
  *                 type: string
- *                 format: date
+ *               dateMonth:
+ *                 type: string
+ *               dateYear:
+ *                 type: string
+ *               doctorName:
+ *                 type: string
+ *               headName:
+ *                 type: string
+ *               nakaz1:
+ *                 type: string
+ *               nakaz2:
+ *                 type: string
+ *               headerName:
+ *                 type: string
+ *               codeEDRPOU:
+ *                 type: string
+ *               headerAddress:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Призначення створено успішно
  *       403:
  *         description: Лікар не може виписати без запису за останній місяць
+ *       400:
+ *         description: Невірні або відсутні поля
  *       500:
  *         description: Помилка сервера
  */
+
 router.post("/create", authenticate(["doctor"]), createPrescription);
 
 /**

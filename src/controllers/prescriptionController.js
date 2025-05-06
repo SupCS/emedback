@@ -2,8 +2,34 @@ const mongoose = require("mongoose");
 const Prescription = require("../models/Prescription");
 const Appointment = require("../models/Appointment");
 
+const mongoose = require("mongoose");
+const Prescription = require("../models/Prescription");
+const Appointment = require("../models/Appointment");
+const { generatePrescriptionPDF } = require("../utils/pdfGenerator");
+
 exports.createPrescription = async (req, res) => {
-  const { patientId, diagnosis, treatment, validUntil } = req.body;
+  const {
+    patientId,
+    institution,
+    patientName,
+    labResults,
+    birthDate,
+    doctor,
+    specialResults,
+    diagnosis,
+    treatment,
+    dateDay,
+    dateMonth,
+    dateYear,
+    doctorName,
+    headName,
+    nakaz1,
+    nakaz2,
+    headerName,
+    codeEDRPOU,
+    headerAddress,
+  } = req.body;
+
   const doctorId = req.user.id;
 
   try {
@@ -17,28 +43,10 @@ exports.createPrescription = async (req, res) => {
         .json({ message: "Діагноз і лікування є обов'язковими полями." });
     }
 
-    if (diagnosis.length > 1000 || treatment.length > 2000) {
+    if (diagnosis.length > 1000 || treatment.length > 1000) {
       return res
         .status(400)
         .json({ message: "Діагноз або лікування занадто довгі." });
-    }
-
-    if (validUntil) {
-      const validUntilDate = new Date(validUntil);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (isNaN(validUntilDate.getTime())) {
-        return res
-          .status(400)
-          .json({ message: "Невірна дата закінчення дії призначення." });
-      }
-
-      if (validUntilDate < today) {
-        return res
-          .status(400)
-          .json({ message: "Дата закінчення дії не може бути в минулому." });
-      }
     }
 
     const oneMonthAgo = new Date();
@@ -57,12 +65,49 @@ exports.createPrescription = async (req, res) => {
       });
     }
 
+    const pdfUrl = await generatePrescriptionPDF({
+      institution,
+      patientName,
+      labResults,
+      birthDate,
+      doctor,
+      specialResults,
+      diagnosis,
+      treatment,
+      dateDay,
+      dateMonth,
+      dateYear,
+      doctorName,
+      headName,
+      nakaz1,
+      nakaz2,
+      headerName,
+      codeEDRPOU,
+      headerAddress,
+    });
+
     const newPrescription = new Prescription({
       doctor: doctorId,
       patient: patientId,
+      institution,
+      patientName,
+      labResults,
+      birthDate,
+      doctor,
+      specialResults,
       diagnosis,
       treatment,
-      validUntil: validUntil || null,
+      dateDay,
+      dateMonth,
+      dateYear,
+      doctorName,
+      headName,
+      nakaz1,
+      nakaz2,
+      headerName,
+      codeEDRPOU,
+      headerAddress,
+      pdfUrl,
     });
 
     await newPrescription.save();
@@ -72,7 +117,7 @@ exports.createPrescription = async (req, res) => {
       prescription: newPrescription,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Помилка створення призначення:", error);
     res
       .status(500)
       .json({ message: "Сталася помилка на сервері. Спробуйте пізніше." });
