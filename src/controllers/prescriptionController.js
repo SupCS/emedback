@@ -39,7 +39,12 @@ exports.createPrescription = async (req, res) => {
         .json({ message: "Діагноз і лікування є обов'язковими полями." });
     }
 
-    if (diagnosis.length > 1000 || treatment.length > 1000) {
+    if (
+      diagnosis.length > 100 ||
+      treatment.length > 100 ||
+      specialResults.length > 100 ||
+      labResults.length > 100
+    ) {
       return res
         .status(400)
         .json({ message: "Діагноз або лікування занадто довгі." });
