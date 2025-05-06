@@ -444,3 +444,31 @@ exports.removeDocument = async (req, res) => {
       .json({ message: "Помилка сервера при видаленні документа." });
   }
 };
+
+exports.getDocuments = async (req, res) => {
+  const { id, role } = req.user;
+
+  try {
+    const userModel = role === "patient" ? Patient : Doctor;
+    const user = await userModel.findById(id);
+
+    if (!user || !Array.isArray(user.documents)) {
+      return res
+        .status(404)
+        .json({ message: "Користувача або документів не знайдено." });
+    }
+
+    const documents = user.documents.map((doc) => ({
+      id: doc._id,
+      title: doc.title,
+      url: doc.url,
+    }));
+
+    res.status(200).json({ documents });
+  } catch (error) {
+    console.error("Помилка при отриманні документів:", error);
+    res
+      .status(500)
+      .json({ message: "Помилка сервера при отриманні документів." });
+  }
+};

@@ -241,4 +241,36 @@ router.delete(
   removeDocument
 );
 
+/**
+ * @swagger
+ * /profile/documents:
+ *   get:
+ *     summary: Отримання усіх документів користувача
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Список документів
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 documents:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       url:
+ *                         type: string
+ *       500:
+ *         description: Помилка сервера
+ */
+router.get("/documents", authenticate(["doctor", "patient"]), getDocuments);
+
 module.exports = router;
