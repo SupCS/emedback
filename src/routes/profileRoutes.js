@@ -9,6 +9,7 @@ const {
   updateProfile,
   uploadDocument,
   removeDocument,
+  getDocuments,
 } = require("../controllers/profileController");
 
 /**
