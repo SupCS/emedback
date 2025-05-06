@@ -1,10 +1,6 @@
 const mongoose = require("mongoose");
 const Prescription = require("../models/Prescription");
 const Appointment = require("../models/Appointment");
-
-const mongoose = require("mongoose");
-const Prescription = require("../models/Prescription");
-const Appointment = require("../models/Appointment");
 const { generatePrescriptionPDF } = require("../utils/pdfGenerator");
 
 exports.createPrescription = async (req, res) => {
