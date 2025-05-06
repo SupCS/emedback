@@ -44,6 +44,9 @@ async function generatePrescriptionPDF(data) {
     headerAddress: data.headerAddress || "",
   };
 
+  console.log("🔍 Перелік доступних полів у формі:");
+  form.getFields().forEach((field) => console.log("—", field.getName()));
+
   for (const [fieldName, value] of Object.entries(fields)) {
     try {
       const field = form.getTextField(fieldName);
@@ -53,6 +56,8 @@ async function generatePrescriptionPDF(data) {
       console.warn(`Поле '${fieldName}' не знайдено`);
     }
   }
+
+  form.flatten();
 
   const pdfBytes = await pdfDoc.save();
   const filename = `prescriptions/${uuidv4()}.pdf`;
