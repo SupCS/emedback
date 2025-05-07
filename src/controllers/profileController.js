@@ -89,6 +89,9 @@ exports.getPatientProfile = async (req, res) => {
       gender: patient.gender,
       allergies: patient.allergies,
       chronicDiseases: patient.chronicDiseases,
+      passportNumber: patient.passportNumber,
+      address: patient.address,
+      workplace: patient.workplace,
     });
   } catch (error) {
     console.error("Помилка отримання профілю пацієнта:", error);
@@ -181,6 +184,9 @@ exports.updateProfile = async (req, res) => {
     gender,
     allergies,
     chronicDiseases,
+    passportNumber,
+    address,
+    workplace,
   } = req.body;
   const { id, role } = req.user;
 
@@ -289,6 +295,36 @@ exports.updateProfile = async (req, res) => {
         user.chronicDiseases = chronicDiseases
           .map((d) => String(d).trim())
           .filter(Boolean);
+      }
+
+      if (passportNumber !== undefined) {
+        if (
+          typeof passportNumber !== "string" ||
+          passportNumber.trim().length < 5
+        ) {
+          return res.status(400).json({
+            message: "Номер паспорта має бути не коротшим за 5 символів.",
+          });
+        }
+        user.passportNumber = passportNumber.trim();
+      }
+
+      if (address !== undefined) {
+        if (typeof address !== "string" || address.trim().length < 5) {
+          return res
+            .status(400)
+            .json({ message: "Адреса має бути не коротшою за 5 символів." });
+        }
+        user.address = address.trim();
+      }
+
+      if (workplace !== undefined) {
+        if (typeof workplace !== "string" || workplace.trim().length < 3) {
+          return res.status(400).json({
+            message: "Місце роботи має бути не коротшим за 3 символи.",
+          });
+        }
+        user.workplace = workplace.trim();
       }
     }
 

@@ -71,6 +71,23 @@ const patientSchema = new mongoose.Schema({
     default: [],
   },
 
+  // Додаткові дані
+  passportNumber: {
+    type: String,
+    required: false,
+    trim: true,
+  },
+  address: {
+    type: String,
+    required: false,
+    trim: true,
+  },
+  workplace: {
+    type: String,
+    required: false,
+    trim: true,
+  },
+
   // Медичні записи
   medicalRecords: [
     {
