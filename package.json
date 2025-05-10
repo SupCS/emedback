@@ -1,7 +1,7 @@
 {
   "name": "emedback",
   "version": "1.0.0",
-  "main": "src/app.js",
+  "main": "src/server.js",
   "scripts": {
     "test": "jest",
     "start": "node src/server.js",

@@ -18,10 +18,10 @@ const startServer = async () => {
     await rescheduleAllAppointments(io);
 
     server.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`Сервер запущено на http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error("❌ Error starting server:", error);
+    console.error("Помилка при старті сервера:", error);
   }
 };
 
