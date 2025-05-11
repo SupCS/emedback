@@ -260,10 +260,10 @@ exports.cancelAppointment = async (req, res) => {
       return res.status(403).json({ message: "Доступ заборонено." });
     }
 
-    if (appointment.status !== "confirmed") {
-      return res
-        .status(400)
-        .json({ message: "Можна скасувати лише підтверджений запис." });
+    if (["cancelled", "passed"].includes(appointment.status)) {
+      return res.status(400).json({
+        message: "Неможливо скасувати завершений або вже скасований запис.",
+      });
     }
 
     appointment.status = "cancelled";
