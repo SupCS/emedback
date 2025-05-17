@@ -173,7 +173,7 @@ exports.getPrescriptionsByPatient = async (req, res) => {
   try {
     const prescriptions = await Prescription.find({
       patient: patientId,
-      isArchived: false,
+      $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
     })
       .populate("doctor", "name specialization")
       .sort({ createdAt: -1 });
@@ -201,7 +201,7 @@ exports.getPrescriptionsByDoctor = async (req, res) => {
   try {
     const prescriptions = await Prescription.find({
       doctor: doctorId,
-      isArchived: false,
+      $or: [{ isArchived: false }, { isArchived: { $exists: false } }],
     })
       .populate("patient", "name email phone")
       .sort({ createdAt: -1 });
