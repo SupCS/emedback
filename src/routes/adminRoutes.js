@@ -18,7 +18,7 @@ const {
   adminUpdatePatient,
   adminCancelAppointment,
   getAdminStats,
-  deletePrescription,
+  toggleArchivePrescription,
   adminRemoveAvatar,
   getDoctorStats,
 } = require("../controllers/adminController");
@@ -44,7 +44,11 @@ router.patch(
 );
 router.get("/stats", authenticate(["admin"]), getAdminStats);
 router.get("/stats/doctor/:doctorId", authenticate(["admin"]), getDoctorStats);
-router.patch("/prescriptions/:id", authenticate(["admin"]), deletePrescription);
+router.patch(
+  "/prescriptions/:id",
+  authenticate(["admin"]),
+  toggleArchivePrescription
+);
 router.delete("/avatar/:role/:id", authenticate(["admin"]), adminRemoveAvatar);
 
 module.exports = router;

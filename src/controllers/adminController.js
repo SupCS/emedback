@@ -223,33 +223,37 @@ exports.getAllPrescriptions = async (req, res) => {
 };
 
 // PATCH /admin/prescriptions/:id
-exports.deletePrescription = async (req, res) => {
+exports.toggleArchivePrescription = async (req, res) => {
   const { id } = req.params;
+  const { isArchived } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: "Невалідний ID призначення." });
   }
 
+  if (typeof isArchived !== "boolean") {
+    return res
+      .status(400)
+      .json({ message: "Поле isArchived має бути true або false." });
+  }
+
   try {
     const prescription = await Prescription.findById(id);
-
     if (!prescription) {
       return res.status(404).json({ message: "Призначення не знайдено." });
     }
 
-    if (prescription.isArchived) {
-      return res.status(400).json({ message: "Призначення вже архівоване." });
-    }
-
-    prescription.isArchived = true;
+    prescription.isArchived = isArchived;
     await prescription.save();
 
-    res.status(200).json({ message: "Призначення архівовано успішно." });
+    res.status(200).json({
+      message: isArchived
+        ? "Призначення архівовано."
+        : "Призначення розархівовано.",
+    });
   } catch (error) {
-    console.error("Помилка при архівації призначення:", error);
-    res
-      .status(500)
-      .json({ message: "Помилка сервера при архівації призначення." });
+    console.error("Помилка оновлення архівації:", error);
+    res.status(500).json({ message: "Помилка сервера при зміні архівації." });
   }
 };
 
