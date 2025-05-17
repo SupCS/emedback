@@ -189,10 +189,13 @@ exports.getPrescriptionsByPatient = async (req, res) => {
       diagnosis: safeDecrypt(p.diagnosis),
       treatment: safeDecrypt(p.treatment),
       pdfUrl: safeDecrypt(p.pdfUrl),
-      attachments: (p.attachments || []).map((a) => ({
-        ...a,
-        url: safeDecrypt(a.url),
-      })),
+      attachments: (p.attachments || []).map((a) => {
+        const plain = a.toObject?.() || a;
+        return {
+          ...plain,
+          url: safeDecrypt(plain.url),
+        };
+      }),
     }));
 
     res.status(200).json(decrypted);
@@ -230,10 +233,13 @@ exports.getPrescriptionsByDoctor = async (req, res) => {
       diagnosis: safeDecrypt(p.diagnosis),
       treatment: safeDecrypt(p.treatment),
       pdfUrl: safeDecrypt(p.pdfUrl),
-      attachments: (p.attachments || []).map((a) => ({
-        ...a,
-        url: safeDecrypt(a.url),
-      })),
+      attachments: (p.attachments || []).map((a) => {
+        const plain = a.toObject?.() || a;
+        return {
+          ...plain,
+          url: safeDecrypt(plain.url),
+        };
+      }),
     }));
 
     res.status(200).json(decrypted);
