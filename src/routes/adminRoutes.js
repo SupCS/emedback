@@ -44,11 +44,7 @@ router.patch(
 );
 router.get("/stats", authenticate(["admin"]), getAdminStats);
 router.get("/stats/doctor/:doctorId", authenticate(["admin"]), getDoctorStats);
-router.delete(
-  "/prescriptions/:id",
-  authenticate(["admin"]),
-  deletePrescription
-);
+router.patch("/prescriptions/:id", authenticate(["admin"]), deletePrescription);
 router.delete("/avatar/:role/:id", authenticate(["admin"]), adminRemoveAvatar);
 
 module.exports = router;

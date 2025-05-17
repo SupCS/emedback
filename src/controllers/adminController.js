@@ -222,7 +222,7 @@ exports.getAllPrescriptions = async (req, res) => {
   }
 };
 
-// DELETE /admin/prescriptions/:id
+// PATCH /admin/prescriptions/:id
 exports.deletePrescription = async (req, res) => {
   const { id } = req.params;
 
@@ -237,51 +237,19 @@ exports.deletePrescription = async (req, res) => {
       return res.status(404).json({ message: "Призначення не знайдено." });
     }
 
-    const storage = getStorage();
-    const bucket = storage.bucket();
-
-    // Видалення основного PDF
-    if (prescription.pdfUrl) {
-      try {
-        const decodedUrl = decodeURIComponent(prescription.pdfUrl);
-        const filePath = decodedUrl.split("/o/")[1]?.split("?")[0];
-        if (filePath) {
-          await bucket.file(filePath).delete();
-        }
-      } catch (err) {
-        console.warn("Не вдалося видалити PDF з Firebase:", err.message);
-      }
+    if (prescription.isArchived) {
+      return res.status(400).json({ message: "Призначення вже архівоване." });
     }
 
-    // Видалення вкладень
-    if (Array.isArray(prescription.attachments)) {
-      for (const attachment of prescription.attachments) {
-        try {
-          const decodedUrl = decodeURIComponent(attachment.url);
-          const filePath = decodedUrl.split("/o/")[1]?.split("?")[0];
-          if (filePath) {
-            await bucket.file(filePath).delete();
-          }
-        } catch (err) {
-          console.warn(
-            `Не вдалося видалити вкладення "${attachment.title}":`,
-            err.message
-          );
-        }
-      }
-    }
+    prescription.isArchived = true;
+    await prescription.save();
 
-    // Видалення документа з бази
-    await prescription.deleteOne();
-
-    res
-      .status(200)
-      .json({ message: "Призначення та пов’язані файли успішно видалено." });
+    res.status(200).json({ message: "Призначення архівовано успішно." });
   } catch (error) {
-    console.error("Помилка при видаленні призначення:", error);
+    console.error("Помилка при архівації призначення:", error);
     res
       .status(500)
-      .json({ message: "Помилка сервера при видаленні призначення." });
+      .json({ message: "Помилка сервера при архівації призначення." });
   }
 };
 

@@ -171,7 +171,10 @@ exports.getPrescriptionsByPatient = async (req, res) => {
   }
 
   try {
-    const prescriptions = await Prescription.find({ patient: patientId })
+    const prescriptions = await Prescription.find({
+      patient: patientId,
+      isArchived: false,
+    })
       .populate("doctor", "name specialization")
       .sort({ createdAt: -1 });
 
@@ -196,7 +199,10 @@ exports.getPrescriptionsByDoctor = async (req, res) => {
   }
 
   try {
-    const prescriptions = await Prescription.find({ doctor: doctorId })
+    const prescriptions = await Prescription.find({
+      doctor: doctorId,
+      isArchived: false,
+    })
       .populate("patient", "name email phone")
       .sort({ createdAt: -1 });
 
