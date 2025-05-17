@@ -4,6 +4,8 @@ const Appointment = require("../models/Appointment");
 const { generatePrescriptionPDF } = require("../utils/pdfGenerator");
 const { getStorage } = require("firebase-admin/storage");
 const { v4: uuidv4 } = require("uuid");
+const { encrypt, safeDecrypt } = require("../utils/encryption");
+
 exports.createPrescription = async (req, res) => {
   try {
     const {
@@ -68,7 +70,7 @@ exports.createPrescription = async (req, res) => {
     }
 
     // Генерація основного PDF
-    const pdfUrl = await generatePrescriptionPDF({
+    const rawPdfUrl = await generatePrescriptionPDF({
       institution,
       patientName,
       labResults,
@@ -88,6 +90,8 @@ exports.createPrescription = async (req, res) => {
       codeEDRPOU,
       headerAddress,
     });
+
+    const pdfUrl = encrypt(rawPdfUrl);
 
     // Обробка додаткових PDF-файлів
     const attachments = [];
@@ -117,7 +121,7 @@ exports.createPrescription = async (req, res) => {
 
       attachments.push({
         title: req.body[`attachments_title_${index}`],
-        url: publicUrl,
+        url: encrypt(publicUrl),
       });
     }
 
@@ -127,12 +131,12 @@ exports.createPrescription = async (req, res) => {
       patient: patientId,
       institution,
       patientName,
-      labResults,
+      labResults: encrypt(labResults),
       birthDate,
       doctorText,
-      specialResults,
-      diagnosis,
-      treatment,
+      specialResults: encrypt(specialResults),
+      diagnosis: encrypt(diagnosis),
+      treatment: encrypt(treatment),
       dateDay,
       dateMonth,
       dateYear,
@@ -178,7 +182,20 @@ exports.getPrescriptionsByPatient = async (req, res) => {
       .populate("doctor", "name specialization")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(prescriptions);
+    const decrypted = prescriptions.map((p) => ({
+      ...p.toObject(),
+      labResults: safeDecrypt(p.labResults),
+      specialResults: safeDecrypt(p.specialResults),
+      diagnosis: safeDecrypt(p.diagnosis),
+      treatment: safeDecrypt(p.treatment),
+      pdfUrl: safeDecrypt(p.pdfUrl),
+      attachments: (p.attachments || []).map((a) => ({
+        ...a,
+        url: safeDecrypt(a.url),
+      })),
+    }));
+
+    res.status(200).json(decrypted);
   } catch (error) {
     console.error(error);
     res
@@ -206,7 +223,20 @@ exports.getPrescriptionsByDoctor = async (req, res) => {
       .populate("patient", "name email phone")
       .sort({ createdAt: -1 });
 
-    res.status(200).json(prescriptions);
+    const decrypted = prescriptions.map((p) => ({
+      ...p.toObject(),
+      labResults: safeDecrypt(p.labResults),
+      specialResults: safeDecrypt(p.specialResults),
+      diagnosis: safeDecrypt(p.diagnosis),
+      treatment: safeDecrypt(p.treatment),
+      pdfUrl: safeDecrypt(p.pdfUrl),
+      attachments: (p.attachments || []).map((a) => ({
+        ...a,
+        url: safeDecrypt(a.url),
+      })),
+    }));
+
+    res.status(200).json(decrypted);
   } catch (error) {
     console.error(error);
     res

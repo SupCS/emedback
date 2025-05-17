@@ -10,6 +10,7 @@ const Appointment = require("../models/Appointment");
 const Prescription = require("../models/Prescription");
 const DoctorSchedule = require("../models/DoctorSchedule");
 const { getStorage } = require("firebase-admin/storage");
+const { safeDecrypt } = require("../utils/encryption");
 
 // POST /admin/login
 exports.loginAdmin = async (req, res) => {
@@ -213,7 +214,20 @@ exports.getAllPrescriptions = async (req, res) => {
       .populate("doctor", "name email specialization")
       .populate("patient", "name email");
 
-    res.status(200).json(prescriptions);
+    const decrypted = prescriptions.map((p) => ({
+      ...p.toObject(),
+      labResults: safeDecrypt(p.labResults),
+      specialResults: safeDecrypt(p.specialResults),
+      diagnosis: safeDecrypt(p.diagnosis),
+      treatment: safeDecrypt(p.treatment),
+      pdfUrl: safeDecrypt(p.pdfUrl),
+      attachments: (p.attachments || []).map((a) => ({
+        ...a,
+        url: safeDecrypt(a.url),
+      })),
+    }));
+
+    res.status(200).json(decrypted);
   } catch (error) {
     console.error("Помилка отримання призначень:", error);
     res

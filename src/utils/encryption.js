@@ -4,7 +4,7 @@ const key = crypto.createHash("sha256").update(rawKey).digest(); // 32 байт�
 const IV_LENGTH = 16;
 
 // Шифрування
-exports.encrypt = (text) => {
+const encrypt = (text) => {
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(text, "utf8", "hex");
@@ -12,8 +12,8 @@ exports.encrypt = (text) => {
   return iv.toString("hex") + ":" + encrypted;
 };
 
-// Розшифрування
-exports.decrypt = (encryptedText) => {
+// Розшифрування (кидає помилку при неправильному форматі)
+const decrypt = (encryptedText) => {
   const [ivHex, encrypted] = encryptedText.split(":");
 
   if (!ivHex || !encrypted) {
@@ -25,4 +25,19 @@ exports.decrypt = (encryptedText) => {
   let decrypted = decipher.update(encrypted, "hex", "utf8");
   decrypted += decipher.final("utf8");
   return decrypted;
+};
+
+// Безпечне розшифрування (повертає оригінальний текст при помилці)
+const safeDecrypt = (encryptedText) => {
+  try {
+    return decrypt(encryptedText);
+  } catch {
+    return encryptedText;
+  }
+};
+
+module.exports = {
+  encrypt,
+  decrypt,
+  safeDecrypt,
 };

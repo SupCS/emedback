@@ -3,7 +3,7 @@ const Chat = require("../models/Chat");
 const Message = require("../models/Message");
 const Doctor = require("../models/Doctor");
 const Patient = require("../models/Patient");
-const { encrypt, decrypt } = require("../utils/encryption");
+const { encrypt, safeDecrypt } = require("../utils/encryption");
 
 // Створення чату між двома користувачами
 exports.createChat = async (req, res) => {
@@ -129,7 +129,7 @@ exports.getMessages = async (req, res) => {
       try {
         return {
           ...m.toObject(),
-          content: decrypt(m.content),
+          content: safeDecrypt(m.content),
         };
       } catch (err) {
         return {
