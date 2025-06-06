@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const authenticate = require("../middleware/authMiddleware");
-const uploadImage = require("../middleware/upload"); // для фото
+const uploadImage = require("../middleware/uploadMiddleware"); // для фото
 const uploadPdf = require("../middleware/uploadPrescriptionFiles"); // для PDF
 const {
   getDoctorProfile,
