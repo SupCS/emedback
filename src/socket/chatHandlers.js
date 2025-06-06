@@ -34,14 +34,6 @@ module.exports = (socket, io) => {
       content: encryptedContent,
     }).save();
 
-    console.log("Надіслано повідомлення:");
-    console.log("  Від:", senderId);
-    console.log("  Кому:", recipientId);
-    console.log("  Оригінал:", content);
-    console.log("  Зашифроване:", encryptedContent);
-    console.log("  Сокети отримувача:", users.get(recipientId));
-    console.log("  Всі userId:", [...users.keys()]);
-
     const recipientSockets = users.get(recipientId);
 
     if (recipientSockets && recipientSockets.size > 0) {

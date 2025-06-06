@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const authenticate = require("../middleware/authMiddleware");
-const upload = require("../middleware/uploadPrescriptionFiles");
+const uploadImage = require("../middleware/upload"); // для фото
+const uploadPdf = require("../middleware/uploadPrescriptionFiles"); // для PDF
 const {
   getDoctorProfile,
   getPatientProfile,
@@ -120,7 +121,7 @@ router.get(
 router.post(
   "/upload-avatar",
   authenticate(["patient", "doctor"]),
-  upload.single("avatar"),
+  uploadImage.single("avatar"),
   uploadAvatar
 );
 
@@ -209,7 +210,7 @@ router.patch("/update", authenticate(["doctor", "patient"]), updateProfile);
 router.post(
   "/upload-document",
   authenticate(["doctor", "patient"]),
-  upload.single("document"),
+  uploadPdf.single("document"),
   uploadDocument
 );
 
